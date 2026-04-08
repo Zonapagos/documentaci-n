@@ -1,5 +1,15 @@
 {
-  "name": "Documentación Zonapagos",
+  "name": "Zonapagos",
+  "logo": {
+    "light": "https://mintlify.s3-us-west-1.amazonaws.com/mintlify/logo/light.svg",
+    "dark": "https://mintlify.s3-us-west-1.amazonaws.com/mintlify/logo/dark.svg"
+  },
+  "favicon": "https://mintlify.s3-us-west-1.amazonaws.com/mintlify/favicon.png",
+  "colors": {
+    "primary": "#07C983",
+    "light": "#15E38A",
+    "dark": "#07C983"
+  },
   "navigation": [
     {
       "group": "Bienvenida",
