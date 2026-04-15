@@ -12,9 +12,9 @@
   },
   "navigation": [
     {
-      "group": "Bienvenida",
+      "group": "Empieza ahora",
       "pages": [
-        "Introduccion"
+        "Inicio"
       ]
     }
   ]
