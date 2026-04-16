@@ -122,9 +122,9 @@ Este servicio está orientado a modelos donde un solo pago debe ser dividido ent
 -	Aplicable únicamente a cuentas bancarias del mismo banco.
 
 **Consideraciones técnicas**
-•	Solo disponible para pagos realizados a través de PSE.
-•	Todas las cuentas destino deben pertenecer a una misma entidad bancaria.
-•	La lógica de distribución debe ser definida previamente en la integración.
+-	Solo disponible para pagos realizados a través de PSE.
+-	Todas las cuentas destino deben pertenecer a una misma entidad bancaria.
+-	La lógica de distribución debe ser definida previamente en la integración.
 
 **Ejemplo de uso:**
 Un comercio recibe un pago y requiere distribuir el valor entre tres cuentas (por ejemplo: operación, comisión y tercero). La dispersión permite que, una vez confirmado el pago, el dinero se asigne automáticamente a cada cuenta configurada.
@@ -180,7 +180,8 @@ Seleccione la solución que mejor se adapte a su modelo de integración y necesi
 
 ## Flujo general de implementación
  El proceso de integración normalmente sigue estas etapas:
- **1. Entendimiento del servicio**
+
+**1. Entendimiento del servicio**
 Revisión del servicio a implementar, alcance funcional, actores involucrados y flujo transaccional esperado. 
 
 **2. Integración técnica**
@@ -198,13 +199,21 @@ Si durante el proceso de integración necesitas apoyo técnico, utiliza los cana
 
 <div style={{ display: "flex", gap: "16px", marginTop: "16px" }}>
 
-  <a href="mailto:soporte@zonavirtual.com.co" target="_blank">
+  <a 
+    href="mailto:soporte@zonavirtual.com.co" 
+    target="_blank" 
+    style={{ width: "200px" }}
+  >
     <Card title="📧 Enviar correo" icon="mail">
       soporte@zonavirtual.com.co
     </Card>
   </a>
 
-  <a href="https://api.whatsapp.com/send?phone=+573014302402&text=Hola,%20quiero%20Soporte%20para%20zonapagos" target="_blank">
+  <a 
+    href="https://api.whatsapp.com/send?phone=+573014302402&text=Hola,%20quiero%20Soporte%20para%20zonapagos" 
+    target="_blank" 
+    style={{ width: "200px" }}
+  >
     <Card title="💬 WhatsApp" icon="message-circle">
       Hablar con soporte
     </Card>
