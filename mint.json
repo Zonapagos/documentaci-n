@@ -11,12 +11,43 @@
     "dark": "#15a48d"
   },
   "navigation": [
-    {
-      "group": "Empieza ahora",
-      "pages": [
-        "Inicio"   
-
-      ]
-    }
-  ]
-}
+  {
+    "group": "Empieza ahora",
+    "pages": [
+      "docs/index",
+      "docs/empieza-ahora/inicio",
+      "docs/empieza-ahora/medios-de-pago",
+      "docs/empieza-ahora/glosario-tecnico"
+    ]
+  },
+  {
+    "group": "Guías de integración",
+    "pages": [
+      "docs/guias/preguntas-frecuentes"
+    ]
+  },
+  {
+    "group": "Pasarelas de pagos - Zonapay",
+    "pages": [
+      "docs/zonapay/introduccion"
+    ]
+  },
+  {
+    "group": "Tesorería - Zonarecaudo",
+    "pages": [
+      "docs/zonarecaudo/introduccion"
+    ]
+  },
+  {
+    "group": "Tokenización",
+    "pages": [
+      "docs/tokenizacion/introduccion"
+    ]
+  },
+  {
+    "group": "Link de cobro",
+    "pages": [
+      "docs/link-de-cobro/introduccion"
+    ]
+  }
+]
