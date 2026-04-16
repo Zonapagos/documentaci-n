@@ -3,97 +3,215 @@ title: Inicio
 description: Bienvenido al portal de desarrolladores de Zonapagos
 ---
 
-# 👋 Bienvenido a Zonapagos
+# Bienvenido a Zonapagos
 
 Bienvenido al portal para desarrolladores de Zonapagos.
 
-Este portal está diseñado para equipos de desarrollo que necesitan integrar los servicios de pago y recaudo mediante API.
+Este portal está diseñado para equipos de desarrollo que necesitan integrar los servicios de pago y recaudo de Zonapagos mediante API. Aquí encontrarás el contexto general de la plataforma y las guías técnicas para implementar cada servicio.
+
+Comienza tu integración con nuestras guías paso a paso.
 
 ---
 
-## 🚀 ¿Qué es Zonapagos?
+## ¿Qué es Zonapagos?
 
-Zonapagos es una plataforma tecnológica para habilitar, procesar y administrar pagos digitales.
-
-Permite conectar comercios, plataformas y aliados a diferentes servicios de recaudo y pago mediante integraciones seguras, escalables y trazables.
+Zonapagos es una plataforma tecnológica para habilitar, procesar y administrar pagos digitales. Nuestra infraestructura permite conectar comercios, plataformas y aliados a diferentes servicios de recaudo y pago a través de integraciones seguras, escalables y trazables.
 
 ---
 
-## ⚙️ Modelo de negocio
+## Modelo de negocio
+
+Zonapagos opera bajo dos modelos Gateway o Agregador, lo que permite ofrecer esquemas de integración flexibles según el tipo de cliente y su necesidad operativa.
 
 ### Gateway
 Para clientes que requieren integración técnica y control del flujo transaccional.
 
 ### Agregador
-Para operaciones centralizadas que buscan acelerar la habilitación.
+Para operaciones centralizadas que buscan acelerar la habilitación y simplificar la conexión.ón.
 
 ---
 
-## 🧩 Modalidades de integración
+## Modalidades de integración
 
-### 🟢 Zonaexpress
-Formulario web alojado por Zonapagos para recaudo sin desarrollo.
+Zonapagos ofrece distintas modalidades de integración para adaptarse al caso de uso del cliente y al nivel de control que requiere sobre la experiencia de pago.
+
+### Zonaexpress
+Solución de recaudo digital basada en un formulario web alojado por Zonapagos, que permite a los comercios habilitar cobros sin necesidad de desarrollar una plataforma propia.
+Está orientada a centralizar pagos de distintos conceptos en una única experiencia administrada, reduciendo el esfuerzo técnico de implementación. Ideal para pagos recurrentes (impuestos, servicios públicos, donaciones y otros servicios)
 
 **Características:**
-- Experiencia alojada
-- Implementación rápida
-- Sin frontend propio
+- Experiencia de pago alojada y administrada por Zonapagos.
+- Parametrización según la operación del comercio.
+- Habilitación rápida sin desarrollo frontend propio.
+- Soporte para múltiples tipos de recaudo en un mismo portal.
+
+### Zonarecaudo
+Solución de tesorería y recaudo que permite gestionar el ciclo completo de cobros, desde la exposición de facturas hasta la conciliación de pagos, a través de la plataforma de Zonapagos. Ideal para recaudo empresarial o institucional, facturación y cobros masivos y gestión de cartera.
+Está diseñada para organizaciones que requieren centralizar su operación de recaudo, ya sea utilizando una solución alojada o integrándose directamente a sus sistemas internos.
+
+#### Opciones de integración
+Zonarecaudo puede operar bajo dos esquemas, dependiendo del nivel de integración requerido:
+
+**1. Portal alojado en Zonapagos (carga de facturas)**
+Zonapagos proporciona una plataforma web donde el comercio puede cargar y administrar directamente las facturas o referencias de pago.
+Los usuarios finales consultan y pagan sus obligaciones. 
+
+**Características de Zonarecaudo:**
+-	Carga manual o masiva de facturas en la plataforma 
+-	Experiencia de consulta y pago alojada 
+-	No requiere integración técnica inicial 
+-	Gestión centralizada de obligaciones y estados de pago 
+-	Ideal para implementaciones rápidas o procesos no integrados 
+
+**2. Integración vía API - consulta en línea**
+Permite integrar Zonarecaudo con los sistemas del comercio para consultar en tiempo real las facturas u obligaciones desde la fuente original (ERP, sistema de facturación, software contable, etc.).
+Durante el flujo de pago, Zonapagos consume esta información y la presenta al usuario final dentro de su experiencia de pago.
+Características de Zonarecaudo vía API:
+-	Consulta dinámica de facturas desde sistemas del cliente.
+-	Integración vía API para exposición de obligaciones. 
+-	Información siempre actualizada en el flujo de pago. 
+-	Eliminación de procesos de carga manual. 
+-	Mayor control y sincronización con sistemas internos. 
+
+**Capacidades adicionales de Zonarecaudo**
+Independientemente de la integración, Zonarecaudo incluye:
+•	Centralización del recaudo en múltiples canales.
+•	Trazabilidad completa de transacciones. 
+•	Consulta de estados de pago. 
+•	Herramientas de conciliación y reporte.
+•	Integración con otros complementos de Zonapagos.
 
 ---
 
-### 🟣 Zonarecaudo
-Gestión completa del ciclo de recaudo.
+### Zonapay
+Pasarela de pagos que permite integrar capacidades de procesamiento transaccional en aplicaciones web o móviles mediante una experiencia de checkout optimizada.
+Está diseñada para comercios que requieren una integración rápida, con control sobre el flujo de pago y compatibilidad con múltiples medios de pago.
+Características de Zonapay:
 
-**Opciones:**
-1. Portal alojado (sin integración)
-2. API (consulta en tiempo real)
-
----
-
-### 🔵 Zonapay
-Pasarela de pagos para web o móvil.
-
-**Características:**
-- Checkout optimizado
-- Integración rápida
-- Soporte múltiples medios
+-	Checkout de pago preconfigurado y optimizado 
+-	Integración mediante redirección o componentes embebidos 
+-	Soporte para múltiples medios de pago 
+-	Gestión del ciclo transaccional (creación, validación y confirmación) 
+-	Compatible con integraciones vía API para consulta y seguimiento
 
 ---
 
-## 🔗 Complementos
+## Complementos a las modalidades
 
 ### Link de cobro
-Generación de enlaces de pago.
+Permite generar enlaces de pago para compartir por canales digitales sin necesidad de construir una experiencia de checkout propia.
 
-### QR de pago
-Cobros mediante códigos QR.
+### QR – Link de pago
+El QR – Link de pago permite habilitar cobros en canales físicos o digitales mediante la generación de un código QR que redirige al usuario a una experiencia de pago en línea.
+El código QR contiene la URL de un sitio web o portal de pagos (del comercio o de Zonapagos), donde el usuario completa la transacción utilizando los medios de pago disponibles.
+
+**Características QR – Link de pago**
+-	Generación de códigos QR asociados a una URL de pago.
+-	Redirección a una experiencia de pago web optimizada.
+-	Compatible con múltiples medios de pago. 
+-	Uso en canales físicos (puntos de venta, impresos, mostradores) o digitales. 
 
 ### Tokenización
-Protección de datos sensibles usando tokens.
+Capacidad para almacenar y reutilizar los datos de las tarjetas de crédito de tus clientes usando "tokens" en lugar de información sensible, esto reduce la fricción en compras o servicios recurrentes y mejora la experiencia del usuario final.
 
 ### Dispersión de fondos
-Distribución automática de dinero entre cuentas.
+La dispersión de fondos permite distribuir automáticamente los valores recaudados hacia múltiples cuentas bancarias, según reglas previamente definidas.
+Este servicio está orientado a modelos donde un solo pago debe ser dividido entre diferentes beneficiarios o cuentas, optimizando la gestión financiera y reduciendo procesos manuales.
+
+**Características de dispersión**
+-	Distribución automática de fondos a múltiples cuentas.
+-	Configuración de reglas de dispersión por porcentajes o valores. 
+-	Procesamiento asociado a transacciones realizadas por PSE. 
+-	Integración vía API o web services. 
+-	Aplicable únicamente a cuentas bancarias del mismo banco.
+
+**Consideraciones técnicas**
+•	Solo disponible para pagos realizados a través de PSE.
+•	Todas las cuentas destino deben pertenecer a una misma entidad bancaria.
+•	La lógica de distribución debe ser definida previamente en la integración.
+
+**Ejemplo de uso:**
+Un comercio recibe un pago y requiere distribuir el valor entre tres cuentas (por ejemplo: operación, comisión y tercero). La dispersión permite que, una vez confirmado el pago, el dinero se asigne automáticamente a cada cuenta configurada.
+
+### Formulario autoliquidador
+Permite a los usuarios generar y pagar una obligación directamente en la plataforma, sin necesidad de contar con información precargada en el sistema del comercio.
+El pagador diligencia manualmente los campos requeridos como: periodo, identificación, conceptos, bases y valores y el sistema calcula el valor total a pagar según las reglas definidas para el formulario.
+Este modelo es especialmente útil cuando la información del pago depende del usuario o cuando no existe una fuente estructurada de datos previa (como facturación o cartera).
+
+**Caracteristicas**
+-	Diligenciamiento manual de la información por parte del usuario.
+-	Cálculo automático de valores según reglas configuradas. 
+-	Validaciones sobre campos obligatorios y formatos. 
+-	Soporte para múltiples conceptos de pago dentro de un mismo formulario. 
+-	Integración directa con el flujo de pago de Zonapagos. 
+-	No requiere integración vía API ni carga previa de datos. 
+
+**Ideal para:**
+-	Entidades públicas o privadas que manejan declaraciones o autoliquidaciones 
+-	Procesos donde el usuario debe calcular y reportar su propio valor a pagar 
+Pagos como: impuestos (industria y comercio, retenciones, etc.), tasas o contribuciones o declaraciones periódicas.
+-	Organizaciones que no cuentan con un sistema de facturación estructurado o integración en línea.
+-	Escenarios donde se requiere rapidez de implementación sin dependencia tecnológica.
+
+**Ejemplo de uso:**
+Un contribuyente ingresa a la plataforma, selecciona el tipo de declaración (por ejemplo, bimestral), diligencia sus datos, registra los valores correspondientes base, tarifa, retenciones, etc. y el sistema calcula automáticamente el total a pagar antes de enviarlo al flujo de pago. En conclusión, el usuario construye la obligación.
+
+### Pagos mixtos
+Los pagos mixtos permiten a un usuario dividir el valor de una transacción utilizando más de un medio de pago dentro de un mismo proceso.
+Esto facilita completar pagos cuando un solo medio no cubre el total o cuando el usuario desea distribuir el pago entre diferentes fuentes.
+
+**Características de pagos mixtos:**
+- Combinación de dos medios de pago en una sola transacción (dos cuentas vía PSE o dos tarjetas de crédito.
+-	La división del pago la define el usuario pagador.
+-	Gestión unificada del estado de la transacción. 
+
+**Consideraciones técnicas**
+-	La transacción se completa cuando ambos pagos son aprobados.
+
+**Ejemplo de uso** 
+Un usuario realiza una compra y decide pagar una parte con tarjeta de crédito y el restante mediante PSE, o dividir el pago entre dos tarjetas diferentes.
+
+**Ideal para**
+-	Comercios con factura altas.
+-	Usuarios que necesitan dividir pagos por disponibilidad de fondos.
+-	Escenarios donde se busca mejorar la conversión de pago.
+-	Modelos que requieren flexibilidad en el proceso de pago.
+
+### Conclusión
+Seleccione la solución que mejor se adapte a su modelo de integración y necesidades operativas. Zonapagos ofrece alternativas que van desde implementaciones sin desarrollo (portales alojados y links de pago) hasta integraciones avanzadas vía API, permitiendo a cada comercio definir el nivel de control, automatización y escalabilidad requerido.
 
 ---
 
-## 🧠 Flujo de implementación
+## Flujo general de implementación
+ El proceso de integración normalmente sigue estas etapas:
+ **1. Entendimiento del servicio**
+Revisión del servicio a implementar, alcance funcional, actores involucrados y flujo transaccional esperado. 
 
-1. Entendimiento del servicio  
-2. Integración técnica  
-3. Validación  
-4. Salida a producción  
+**2. Integración técnica**
+Consumo de puntos de conexión (endpoints), configuración de credenciales, parametrización de ambientes y construcción del flujo de pago o recaudo.
+Adicionalmente, el comercio debe exponer un servicio propio que permita a Zonapagos consultar y/o notificar el estado de las transacciones. Este servicio debe estar disponible mediante un endpoint (por ejemplo, GET) que Zonapagos pueda consumir para validar pagos finalizados y sincronizar el estado de la operación.
 
----
+**3. Validación**
+Pruebas funcionales, validación de estados, recepción de notificaciones y verificación de reglas de negocio.
 
-## 📞 Soporte
+**4. Salida a producción**
+Activación de credenciales productivas, validación operativa final y monitoreo inicial de transacciones.
 
-- 📧 soporte@zonavirtual.com.co  
-- 💬 https://api.whatsapp.com/send?phone=+573014302402
+### Soporte para integraciones
+Si durante el proceso de integración necesitas apoyo técnico, utiliza los canales definidos por Zonapagos para soporte a implementaciones, validación de pruebas y acompañamiento de salida a producción.
 
----
+<div style={{ display: "flex", gap: "16px", marginTop: "16px" }}>
 
-## 👉 Comienza aquí
+  <a href="mailto:soporte@zonavirtual.com.co" target="_blank">
+    <Card title="📧 Enviar correo" icon="mail">
+      soporte@zonavirtual.com.co
+    </Card>
+  </a>
 
-<Card title="Guía de inicio" href="/docs/empieza-ahora/inicio" />
-<Card title="Medios de pago" href="/docs/empieza-ahora/medios-de-pago" />
-<Card title="Glosario técnico" href="/docs/empieza-ahora/glosario-tecnico" />
+  <a href="https://api.whatsapp.com/send?phone=+573014302402&text=Hola,%20quiero%20Soporte%20para%20zonapagos" target="_blank">
+    <Card title="💬 WhatsApp" icon="message-circle">
+      Hablar con soporte
+    </Card>
+  </a>
+
+</div>
