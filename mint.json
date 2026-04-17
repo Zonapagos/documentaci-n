@@ -34,17 +34,17 @@
       ]
     },
     {
-      "group": "Tokenización",
-      "pages": [
-        "docs/tokenizacion/introduccion",
-        "docs/tokenizacion/Preguntas-frecuentes"
-      ]
-    },
-    {
       "group": "Formulario de pago - Zonaexpress",
       "pages": [
         "docs/zonaexpress/introduccion",
         "docs/zonaexpress/Preguntas-frecuentes"
+      ]
+    },
+    {
+      "group": "Tokenización",
+      "pages": [
+        "docs/tokenizacion/introduccion",
+        "docs/tokenizacion/Preguntas-frecuentes"
       ]
     },
     {
