@@ -1,1 +1,161 @@
+---
+title: Medios de Pago
+---
 
+### 1.	Adquirente
+Es un banco o institución financiera autorizada por las franquicias internacionales –como Diners, Mastercard o Visa–, para procesar las tarjetas de crédito y débito que se utilicen en un país.  
+
+### 2.	Archivo Plano
+Mecanismo de intercambio de información entre sistemas mediante archivos de texto estructurados, donde cada línea corresponde a un registro y no se utilizan formatos complejos ni caracteres especiales.
+
+**Para la definición de los campos, se emplean principalmente dos esquemas:**
+
+**Longitud fija:** 
+cada campo tiene un tamaño predefinido. Los valores numéricos se completan con ceros a la izquierda y los alfanuméricos con espacios a la derecha para cumplir con la longitud establecida.
+
+**Ejemplo:**
+NOMBRE              TARJETA        0000050000EMPRESA            
+
+**Separados por comas (CSV):**
+los campos se delimitan mediante comas (,), sin necesidad de completar con ceros o espacios.
+
+**Ejemplo:**
+NOMBRE,TARJETA,50000,EMPRESA
+
+### 3.	Canales
+Son los medios a través de los cuales se realizan transacciones o interacciones financieras. Algunos de los principales canales son:
+-	Digitales: Plataformas en línea para realizar pagos como: PSE, Bre-B, Daviplata, Nequi, Botón Bancolombia y tarjetas de crédito.
+-	Oficinas bancarias: Atención presencial en sucursales bancarias.  
+-	Canales no bancarizados: Corresponsales o aliados autorizados para operar en nombre de bancos, Gana, efecty, wester unión, supergiros, ATH y más. 
+
+### 4.	Central Antifraude (CA) 
+Segmento del módulo administrativo de zonapagos potenciado por reglas estáticas, que se vincula a proveedores de servicios de verificación de identidad digital y
+de productos financieros para la autenticación de transacciones a través de la plataforma, considerando la evaluación de riesgos de la taquilla y elaborando un perfil
+transaccional para la misma.
+
+### 5.	Comercios
+Empresas que están conectadas a Zonapagos para recibir sus pagos de la venta de productos o servicios mediante canales digitales o presenciales.
+
+### 6.	Comercio Electrónico (ecommerce)
+Es la compra y venta de productos o servicios a través de plataformas digitales, utilizando Internet u otras redes informáticas como medio de intercambio. Este modelo permite realizar transacciones 
+seguras desde cualquier lugar.
+
+### 7.	Conciliación
+Es el proceso con el que un comercio verifica la información financiera de su negocio. 
+En el modelo gateway, el comercio realiza el proceso directamente con el banco, y puede comparar las transacciones autorizadas del banco frente a las que se reflejen en Zonapagos. 
+
+### 8.	Cuenta recaudadora
+Cuenta bancaria donde se reciben los recursos provenientes de pagos o recaudos realizados por los usuarios pagadores.
+
+### 9.	Datos de autenticación sensibles
+Se trata de la información del tarjetahabiente para verificar su autenticidad en el momento de realizar un pago con tarjeta. Estos datos incluyen:
+-	El número de tarjeta
+-	El CVV
+-	Datos de identidad del dueño
+-	El PIN
+-	El chip
+Es fundamental garantizar su protección durante todo el ciclo transaccional, para ello, las entidades que procesan, transmiten o almacenan estos datos deben cumplir con el estándar PCI DSS, el cual establece un conjunto de controles de seguridad orientados a proteger la información del tarjetahabiente.
+
+### 10.	Emisor
+Es la entidad encargada de emitir tarjetas de crédito o débito a las personas en nombre de las grandes franquicias o redes (Visa, Mastercard, etc.). Se trata de un intermediario entre los consumidores y estas redes.
+Los emisores pueden ser bancos, instituciones financieras, asociaciones de ahorros y créditos, entidades gubernamentales o comercios minoristas.
+
+### 11.	 Entidad financiera
+Institución que ofrece servicios de recaudo a los comercios y facilita la apertura de cuentas de ahorro o corriente, así como la asignación de tarjetas de crédito para los clientes.
+
+### 12.	ERP Enterprise Resource Planning
+Sistema de gestión empresarial compuesto por módulos funcionales que se adaptan a las necesidades del comercio. Incluye componentes como cartera y facturación, desde los cuales se genera la información de las obligaciones de los clientes que es integrada a Zonapagos, y que posteriormente recibe la confirmación de los pagos procesados en la plataforma.
+
+### 13.	Franquicia de tarjetas
+La franquicia de las tarjetas se refiere a las diferentes compañías de tarjetas de crédito que emiten los bancos. Las más reconocidas a escala mundial son American Express, Diners, Mastercard y Visa.
+
+### 14.	ID Tienda/ID Comercio/ID único/Identificador comercio
+Número de identificación único del comercio
+
+### 15.	Impuesto al Valor Agregado (IVA)
+contribución tributaria deducida a partir de los precios que los consumidores pagan por bienes y servicios.
+
+### 16.	Interfaz de Programación de Aplicaciones (API)
+interfaz que un software utiliza para interactuar con otro software.
+
+### 17.	Link de pago
+Url que contiene toda la información de la transacción que se desea realizar.
+
+### 18.	Modelo Agregador
+El dinero de las transacciones se recibe en la cuenta bancaria de Zonapagos y luego se transfiere al comercio en el plazo pactado. Aplicando una tarifa única que simplifica la gestión y consolida costos.
+
+### 19.	Modelo Gateway
+El dinero de las transacciones pasa directamente a la cuenta de los comercios. Permite que el comercio mantenga el control total sobre su relación con bancos y franquicias, con la posibilidad 
+de negociar sus propias condiciones. y tarifas. En este modelo Zonapagos actúa únicamente como facilitador tecnológico.
+
+### 20.	Nuevo core
+Infraestructura tecnológica en la que se realizan nuevas funcionalidades de servicio y procesamiento transaccional.
+
+### 21.	OTP One-Time Password
+Código de uso único y temporal generado para validar la identidad de un usuario durante un proceso de autenticación o transacción. Tiene una vigencia limitada y solo puede utilizarse una vez, 
+lo que reduce el riesgo de fraude o accesos no autorizados.
+
+### 22.Pagos Seguros en Línea (PSE)
+servicio en línea que permite pagar diferentes elementos mediante la debito de una cuenta corriente o de ahorro desde su entidad financiera.
+
+### 23. Pasarela de pago
+Es un software utilizado por comercios para implementar un sistema de pagos en sus tiendas en línea. Una pasarela de pago se encarga de conectar entre sí al comprador, el vendedor y las instituciones bancarias de ambos. Una pasarela de pago recibe y valida los datos de la tarjeta del cliente, confirma que hay fondos suficientes y permite a los comercios cobrar. 
+
+### 24. PCI-DSS Estándar de seguridad de datos para la industria de tarjeta de pago (En inglés, Payment Card Industry- Data Security Standard) 
+Es un estándar de seguridad que aplica a todas las entidades involucradas en el ecosistema de pagos con tarjeta, incluyendo comercios, procesadores, entidades financieras y proveedores de servicios. Fue creado en 2004 por las principales franquicias de tarjetas a nivel mundial. El objetivo es establece controles para proteger los datos del tarjetahabiente durante su almacenamiento, procesamiento y transmisión, asegurando la seguridad de los procesos, la tecnología y las personas involucradas.
+
+### 25.	Procesador de pagos
+Es una compañía que procesa una transacción en línea (desde enrutar, autenticar y registrar, hasta liquidar un pago). En este sentido, un procesador de pagos actúa como un intermediario 
+entre el banco y el comercio, ya que se encarga de comunicar la información de la tarjeta del comprador con su propio banco, así como con el banco o cuenta destino.
+Si la información es correcta y se tienen los fondos suficientes, entonces la transacción se completa.
+
+### 26.	PSP Proveedor de servicios de pago
+Son empresas de procesamiento de pagos de terceros, es decir, empresas que ayudan a los comercios a procesar pagos en línea (ya sea con tarjeta de crédito, débito, billeteras digitales, 
+transferencias en tiempo real, etc).
+Para ello, el proveedor de servicios de pago proporciona una pasarela de pago, así como una cuenta de comercio. La diferencia con otros sistemas es que los PSP asumen 
+el riesgo financiero de cada comercio que se conecta con ellos.
+
+### 27.	Phigytal
+Capacidad de Zonapagos para integrar medios de pago digitales y presenciales en una única experiencia de recaudo. Permite ofrecer medios digitales (PSE, billeteras, tarjeta de crédito) 
+junto con opciones presenciales en un mismo flujo de recaudo.
+
+### 28.	Riesgo Transaccional
+Posibilidad de pérdida financiera asociada a las transacciones como consecuencia de fraude, errores operativos u otros eventos imprevistos.
+
+### 29.	SAGRILAFT 
+(Sistema de Autocontrol y Gestión del Riesgo Integral de Lavado de Activos y Financiación del Terrorismo) es un conjunto de políticas, controles y procedimientos que implementan 
+las empresas para prevenir, detectar y gestionar riesgos relacionados con el lavado de activos y la financiación del terrorismo.
+
+### 30.	SONDA
+es una tarea programada encargada de verificar las transacciones que en el comercio se encuentran en estado pendiente.
+Zonapagos asume la relación con los bancos y franquicias de tarjetas, por lo que los comercios no necesitan hacer negociaciones directas.
+
+### 31.	Taquilla: Datáfono virtual en cualquiera de sus modalidades.
+
+### 32.	Tokenización
+Protege los datos de las tarjetas de crédito de tus clientes usando "tokens" en lugar de información sensible.
+Proceso mediante el cual el comercio recolecta los datos del cliente y, una vez disponibles, Zonapagos los almacena en una bóveda segura sin acceso directo, generando posteriormente un token 
+equivalente. Este token es utilizado por el comercio para realizar operaciones a través de la API sin exponer información sensible.
+
+### 33.	Token
+Valor único generado por un sistema que representa información sensible (como datos de una tarjeta), sin exponerla directamente. Se utiliza como sustituto seguro en las transacciones, 
+permitiendo operar con la información sin almacenar ni transmitir los datos reales.
+
+### 34.	Transacción
+Es el proceso mediante el cual se realiza un movimiento de dinero entre el usuario pagador y el comercio a través de la plataforma. Incluye la validación de la información, la autorización del pago 
+y el registro del resultado del proceso.
+
+### 35.	TRM
+Tasa de Cambio Representativa del Mercado.
+
+### 36.	Usuario pagador
+Es el cliente del comercio. Persona natural o jurídica que realiza un pago a un comercio, ya sea para adquirir un producto, servicio o cumplir con una obligación, utilizando cualquiera de los canales disponibles.
+
+### 37.	VPN
+Es una red privada virtual que permite establecer un canal seguro de comunicación entre el comercio y las entidades financieras a través de Internet. Mediante el cifrado de la información, garantiza la protección y confidencialidad de los datos intercambiados entre los sistemas conectados.
+
+### 38.	Web Service
+Tecnología estándar de integración que permite la comunicación entre aplicaciones, independientemente de su ubicación o implementación. Utiliza protocolos como XML/SOAP para el intercambio estructurado de información. En Zonapagos, es uno de los mecanismos empleados para la integración con comercios y entidades financieras, facilitando el envío y recepción de mensajes transaccionales.
+
+### 39.	3D Secure (3DS)
+Protocolo de autenticación utilizado en pagos con tarjeta de crédito/débito que añade una capa adicional de seguridad. Permite verificar la identidad del tarjetahabiente durante la transacción mediante mecanismos como contraseñas, OTP o claves dinámicas, reduciendo el riesgo de fraude en compras electrónicas.
