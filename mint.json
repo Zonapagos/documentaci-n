@@ -15,38 +15,42 @@
       "group": "Empieza ahora",
       "pages": [
         "docs/index",
-        "docs/empieza-ahora/inicio",
         "docs/empieza-ahora/medios-de-pago",
         "docs/empieza-ahora/glosario-tecnico"
       ]
     },
     {
-      "group": "Guías de integración",
-      "pages": [
-        "docs/guias/preguntas-frecuentes"
-      ]
-    },
-    {
       "group": "Pasarelas de pagos - Zonapay",
       "pages": [
-        "docs/zonapay/introduccion"
+        "docs/zonapay/introduccion",
+        "docs/zonapay/Preguntas-frecuentes"
       ]
     },
     {
       "group": "Tesorería - Zonarecaudo",
       "pages": [
-        "docs/zonarecaudo/introduccion"
+        "docs/zonarecaudo/introduccion",
+        "docs/zonarecaudo/Preguntas-frecuentes"
       ]
     },
     {
       "group": "Tokenización",
       "pages": [
-        "docs/tokenizacion/introduccion"
+        "docs/tokenizacion/introduccion",
+        "docs/tokenizacion/Preguntas-frecuentes"
+      ]
+    },
+    {
+      "group": "Formulario de pago - Zonaexpress",
+      "pages": [
+        "docs/zonaexpress/introduccion",
+        "docs/zonaexpress/Preguntas-frecuentes"
       ]
     },
     {
       "group": "Link de cobro",
       "pages": [
+        "docs/link-de-cobro/introduccion",
         "docs/link-de-cobro/introduccion"
       ]
     }
