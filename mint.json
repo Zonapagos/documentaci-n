@@ -1,9 +1,8 @@
 {
   "name": "Zonapagos",
   "logo": {
-    "logo": {
-      "light": "/imagenes/Logozona.svg",
-      "dark": "/imagenes/Logozona.svg"
+     "light": "/imagenes/Logozona.svg",
+     "dark": "/imagenes/Logozona.svg"
   },
   "favicon": "https://zonavirtual.com/wp-content/uploads/2022/07/cropped-Favicon-web.png",
   "colors": {
