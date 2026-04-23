@@ -22,35 +22,35 @@
     {
       "group": "Pasarelas de pagos - Zonapay",
       "pages": [
-        "docs/zonapay/introduccion",
+        "docs/zonapay/introducción",
         "docs/zonapay/Preguntas-frecuentes"
       ]
     },
     {
       "group": "Tesorería - Zonarecaudo",
       "pages": [
-        "docs/zonarecaudo/introduccion",
+        "docs/zonarecaudo/introducción",
         "docs/zonarecaudo/Preguntas-frecuentes"
       ]
     },
     {
       "group": "Formulario de pago - Zonaexpress",
       "pages": [
-        "docs/zonaexpress/introduccion",
+        "docs/zonaexpress/introducción",
         "docs/zonaexpress/Preguntas-frecuentes"
       ]
     },
     {
       "group": "Tokenización",
       "pages": [
-        "docs/tokenizacion/introduccion",
+        "docs/tokenizacion/introducción",
         "docs/tokenizacion/Preguntas-frecuentes"
       ]
     },
     {
       "group": "Link de cobro",
       "pages": [
-        "docs/link-de-cobro/introduccion",
+        "docs/link-de-cobro/introducción",
         "docs/link-de-cobro/Preguntas-frecuentes"
       ]
     }
