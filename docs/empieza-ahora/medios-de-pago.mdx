@@ -5,14 +5,31 @@ title: Medios de Pago
 Dependiendo del servicio contratado, Zonapagos permite habilitar diferentes medios de pago, como transferencias bancarias, tarjetas, experiencias de pago alojadas y soluciones de recaudo digital.
 
 
-<div style={{ textAlign: "center", margin: "24px 0" }}>
+<div 
+  style={{ 
+    textAlign: "center", 
+    margin: "24px 0",
+    overflow: "hidden",
+    borderRadius: "12px"
+  }}
+>
   <img 
     src="../imagenes/imagen-mpago.jpg"
     style={{ 
       width: "100%",
       maxWidth: "500px",
       borderRadius: "12px",
-      boxShadow: "0 10px 30px rgba(0,0,0,0.15), 0 2px 10px rgba(0,0,0,0.1)"
+      transition: "all 0.3s ease",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+      cursor: "pointer"
+    }}
+    onMouseOver={(e) => {
+      e.currentTarget.style.transform = "scale(1.05)";
+      e.currentTarget.style.boxShadow = "0 10px 30px rgba(0,0,0,0.2)";
+    }}
+    onMouseOut={(e) => {
+      e.currentTarget.style.transform = "scale(1)";
+      e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.1)";
     }}
   />
 </div>
