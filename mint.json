@@ -124,14 +124,14 @@
     ]
   },
     {
-      "group": "Tesorería - Zonarecaudo",
+      "group": "Zonarecaudo - Tesorería y portal",
       "pages": [
         "docs/zonarecaudo/introducción",
         "docs/zonarecaudo/Preguntas-frecuentes"
       ]
     },
     {
-      "group": "Formulario de pago - Zonaexpress",
+      "group": "Zonaexpress - Formulario de pago",
       "pages": [
         "docs/zonaexpress/introducción",
         "docs/zonaexpress/Preguntas-frecuentes"
