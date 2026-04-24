@@ -6,10 +6,10 @@ description: "Endpoint que tu comercio expone para recibir al usuario tras compl
 
 ## Visión general
 
-Al terminar el ciclo de pago (exitoso, rechazado o abandonado), ZonaPagos **redirige al usuario** a una URL que tú defines. Es un `GET` con parámetros en la query string.
+Al terminar el ciclo de pago (exitoso, rechazado o abandonado), Zonapagos **redirige al usuario** a una URL que tú defines. Es un `GET` con parámetros en la query string.
 
 <Warning>
-Este endpoint lo expone **tu comercio**, no ZonaPagos. Esta página documenta qué recibes y cómo procesarlo.
+Este endpoint lo expone **tu comercio**, no Zonapagos. Esta página documenta qué recibes y cómo procesarlo.
 </Warning>
 
 ## Cómo se configura la URL de retorno
@@ -18,7 +18,7 @@ Tienes dos formas:
 
 <Tabs>
   <Tab title="Estática (por comercio)">
-    Al activar tu comercio, el equipo de ZonaPagos configura la URL de retorno en tu perfil. Se usa para todos los pagos que inicies, a menos que envíes el código `104`.
+    Al activar tu comercio, el equipo de Zonapagos configura la URL de retorno en tu perfil. Se usa para todos los pagos que inicies, a menos que envíes el código `104`.
   </Tab>
   <Tab title="Dinámica (por pago)">
     En `AdicionalesConfiguracion` de `InicioPago`, envía:
