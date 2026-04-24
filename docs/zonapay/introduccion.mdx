@@ -1,82 +1,96 @@
 ---
-title: "Introducción"
-description: "Pasarela de pagos para integrar procesamiento transaccional en aplicaciones web y móviles."
+title: "API Reference"
+sidebarTitle: "Introducción"
+description: "Referencia técnica completa del API REST de ZonaPagos."
 ---
 
-Zonapay es la pasarela de pagos de Zonapagos: permite a un comercio crear una transacción por API, redirigir al usuario a un ciclo de pago alojado por Zonapagos y recibir de vuelta el estado final del pago.
+## URL base
 
-Está pensada para comercios que necesitan integración transaccional con control sobre el flujo, soporte multi-medio (PSE, tarjeta de crédito, Bancolombia, Codensa, convenios) y trazabilidad para reconciliación.
+<CodeGroup>
+```txt Producción
+https://www.zonapagos.com/Apis_CicloPago/api
+```
 
-## Cuándo usar Zonapay
+```txt Sandbox REST
+(No disponible públicamente — contactar soporte para credenciales de preproducción)
+```
+</CodeGroup>
+
+## Endpoints
+
+| Método | Ruta | Propósito |
+|--------|------|-----------|
+| POST | [`/InicioPago`](/docs/zonapay/api/endpoints/inicio-pago) | Crear una transacción y obtener la URL del ciclo de pago. |
+| POST | [`/VerificacionPago`](/docs/zonapay/api/endpoints/verificacion-pago) | Consultar el estado de una o más transacciones. |
+| GET | [callback del comercio](/docs/zonapay/api/endpoints/callback) | ZonaPagos redirige al usuario a tu URL de retorno con `id_comercio` e `id_pago`. |
+
+## Resumen de diseño
+
+- **REST sobre HTTPS**. Nunca llames por HTTP plano.
+- **Formato**: `application/json` tanto en request como en response.
+- **Siempre HTTP 200**. Los errores de negocio se señalan vía `int_codigo: 2` dentro del cuerpo JSON. Códigos HTTP distintos a 200 indican error de infraestructura (URL mal escrita, content-type faltante, caída de red, etc.).
+- **Autenticación por credenciales en el body** (no hay headers de Authorization). Ver [Autenticación](/docs/zonapay/api/autenticacion).
+- **Endpoints sin paginación ni límites de rate publicados**. Si necesitas hacer consultas masivas, coordina con soporte.
+
+<Warning>
+**Importante sobre códigos HTTP:** hemos verificado empíricamente que el API responde HTTP 200 incluso ante credenciales inválidas o payloads incompletos. No asumas HTTP 200 como sinónimo de éxito — siempre lee `int_codigo` del cuerpo. _[Pendiente de TI: documentar formalmente esta convención y considerar si algún escenario sí retorna HTTP ≠ 200.]_
+</Warning>
+
+## Modelo de objetos
 
 <CardGroup cols={2}>
-  <Card title="E-commerce" icon="cart-shopping">
-    Checkout de pago con múltiples medios en una sola integración.
+  <Card title="InformacionPago" icon="receipt" href="/docs/zonapay/api/objetos/informacion-pago">
+    Datos del pago y del cliente.
   </Card>
-  <Card title="Servicios digitales" icon="globe">
-    Suscripciones, compras únicas, renovaciones.
+  <Card title="InformacionSeguridad" icon="lock" href="/docs/zonapay/api/objetos/informacion-seguridad">
+    Credenciales del comercio.
   </Card>
-  <Card title="Recaudo integrado" icon="building-columns">
-    Cuando el flujo debe convivir con tu propia lógica de negocio.
+  <Card title="AdicionalPago" icon="plus" href="/docs/zonapay/api/objetos/adicional-pago">
+    Array de información adicional del pago.
   </Card>
-  <Card title="Apps móviles" icon="mobile">
-    Redirección al ciclo de pago o WebView embebida.
+  <Card title="AdicionalConfiguracion" icon="sliders" href="/docs/zonapay/api/objetos/adicional-configuracion">
+    Array de configuración del comportamiento del ciclo de pago.
+  </Card>
+  <Card title="RespuestaInicioPago" icon="arrow-right-from-bracket" href="/docs/zonapay/api/objetos/respuesta-inicio-pago">
+    Estructura del response de `InicioPago`.
+  </Card>
+  <Card title="RespuestaVerificacion" icon="magnifying-glass-chart" href="/docs/zonapay/api/objetos/respuesta-verificacion">
+    Estructura del response de `VerificacionPago`.
   </Card>
 </CardGroup>
 
-Si lo que necesitas es un formulario alojado sin desarrollo, evalúa [Zonaexpress](/docs/zonaexpress/introduccion). Si lo que necesitas es un enlace compartible, evalúa [Link de cobro](/docs/link-de-cobro/introduccion).
-
-## Cómo funciona en una frase
-
-Tu backend crea la transacción → rediriges al usuario al ciclo de pago → Zonapagos procesa con la red financiera → tu backend consulta el estado y entrega el producto.
-
-<Steps>
-  <Step title="Iniciar pago">
-    `POST /InicioPago` con los datos del pago. Recibes una URL.
-  </Step>
-  <Step title="Redirigir al usuario">
-    El usuario completa el pago en el ciclo alojado por Zonapagos.
-  </Step>
-  <Step title="Recibir callback">
-    Al terminar, Zonapagos redirige al usuario de vuelta con `id_comercio` e `id_pago`.
-  </Step>
-  <Step title="Verificar estado">
-    `POST /VerificacionPago` te entrega el estado final antes de que entregues el producto.
-  </Step>
-  <Step title="Sonda (obligatoria si aceptas PSE)">
-    Un job periódico consulta pagos pendientes hasta recibir respuesta definitiva.
-  </Step>
-</Steps>
-
-## Primeros pasos
+## Tablas de referencia
 
 <CardGroup cols={2}>
-  <Card title="Cómo funciona" icon="circle-info" href="/docs/zonapay/empezar/como-funciona">
-    Arquitectura, actores y flujo end-to-end.
+  <Card title="Estados de pago" icon="list-check" href="/docs/zonapay/api/referencia/estados-pago">
+    Todos los valores de `int_estado_pago` con su acción recomendada.
   </Card>
-  <Card title="Quickstart" icon="rocket" href="/docs/zonapay/empezar/quickstart">
-    Tu primer pago en 10 minutos con código listo para copiar.
+  <Card title="Medios de pago" icon="credit-card" href="/docs/zonapay/api/referencia/medios-pago-codigos">
+    Códigos `int_id_forma_pago` y campos adicionales por medio.
   </Card>
-  <Card title="Ambientes" icon="server" href="/docs/zonapay/empezar/ambientes">
-    URLs, credenciales y cómo solicitar acceso.
+  <Card title="Tipos de identificación" icon="id-card" href="/docs/zonapay/api/referencia/tipos-id">
+    Valores válidos para `str_tipo_id`.
   </Card>
-  <Card title="API Reference" icon="code" href="/docs/zonapay/api/introduccion">
-    Endpoints, objetos y tablas de referencia.
+  <Card title="Configuraciones adicionales" icon="gear" href="/docs/zonapay/api/referencia/adicionales-configuracion">
+    Todos los códigos de `AdicionalesConfiguracion`.
   </Card>
 </CardGroup>
 
-## Medios de pago soportados
+## Formatos especiales
 
-- **PSE** (débito bancario en línea)
-- **Tarjeta de crédito** (Visa, Mastercard, American Express, Diners Club)
-- **Bancolombia** (botón de pago directo)
-- **Codensa** (Crédito Fácil Codensa)
-- **Sistecrédito**
-- **Mefía** y otros convenios
-- **PDF presencial** con referencia
+El API usa dos formatos que merecen atención especial:
 
-Ver el detalle en [Medios de pago](/docs/empieza-ahora/medios-de-pago).
+<CardGroup cols={2}>
+  <Card title="Parsear str_res_pago" icon="code" href="/docs/zonapay/api/formatos/parsear-str-res-pago">
+    El campo viene como texto plano con separadores `|` y `|;|`. Tenemos parser en JS, Python y C#.
+  </Card>
+  <Card title="Campos por medio de pago" icon="code-compare" href="/docs/zonapay/api/formatos/campos-por-medio-pago">
+    Cada medio de pago añade campos extra al final de `str_res_pago`.
+  </Card>
+</CardGroup>
 
-## Soporte
+## Próximo paso
 
-Si durante tu integración necesitas ayuda, escríbenos a [soporte@zonavirtual.com.co](mailto:soporte@zonavirtual.com.co) o por [WhatsApp](https://api.whatsapp.com/send?phone=+573014302402&text=Hola,%20quiero%20Soporte%20para%20zonapay).
+<Card title="Ir a /InicioPago →" icon="play" href="/docs/zonapay/api/endpoints/inicio-pago">
+  El endpoint donde empieza todo.
+</Card>
