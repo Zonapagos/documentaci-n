@@ -22,10 +22,107 @@
     {
       "group": "Pasarelas de pagos - Zonapay",
       "pages": [
-        "docs/zonapay/introducción",
-        "docs/zonapay/Preguntas-frecuentes"
-      ]
-    },
+        "docs/zonapay/introduccion",
+      {
+        "group": "Empezar",
+        "pages": [
+          "docs/zonapay/empezar/como-funciona",
+          "docs/zonapay/empezar/ambientes",
+          "docs/zonapay/empezar/quickstart",
+          "docs/zonapay/empezar/changelog"
+        ]
+      },
+      {
+        "group": "Guías de integración",
+        "pages": [
+          "docs/zonapay/guias/iniciar-pago",
+          "docs/zonapay/guias/redirigir-usuario",
+          "docs/zonapay/guias/recibir-callback",
+          "docs/zonapay/guias/verificar-estado",
+          "docs/zonapay/guias/implementar-sonda",
+          "docs/zonapay/guias/manejo-errores",
+          "docs/zonapay/guias/idempotencia",
+          "docs/zonapay/guias/seguridad-callback",
+          "docs/zonapay/guias/logging",
+          "docs/zonapay/guias/checklist-produccion",
+          "docs/zonapay/guias/certificacion-pse"
+        ]
+      },
+      {
+        "group": "Casos de uso",
+        "pages": [
+          "docs/zonapay/guias/pse-simple",
+          "docs/zonapay/guias/tc-simple",
+          "docs/zonapay/guias/pagos-mixtos",
+          "docs/zonapay/guias/pagos-recurrentes",
+          "docs/zonapay/guias/cobro-transaccion"
+        ]
+      },
+      {
+        "group": "API Reference",
+        "pages": [
+          "docs/zonapay/api/introduccion",
+          "docs/zonapay/api/autenticacion",
+          "docs/zonapay/api/convenciones",
+          {
+            "group": "Endpoints",
+            "pages": [
+              "docs/zonapay/api/endpoints/inicio-pago",
+              "docs/zonapay/api/endpoints/verificacion-pago",
+              "docs/zonapay/api/endpoints/callback"
+            ]
+          },
+          {
+            "group": "Objetos",
+            "pages": [
+              "docs/zonapay/api/objetos/informacion-pago",
+              "docs/zonapay/api/objetos/informacion-seguridad",
+              "docs/zonapay/api/objetos/adicional-pago",
+              "docs/zonapay/api/objetos/adicional-configuracion",
+              "docs/zonapay/api/objetos/respuesta-inicio-pago",
+              "docs/zonapay/api/objetos/respuesta-verificacion"
+            ]
+          },
+          {
+            "group": "Tablas de referencia",
+            "pages": [
+              "docs/zonapay/api/referencia/estados-pago",
+              "docs/zonapay/api/referencia/medios-pago-codigos",
+              "docs/zonapay/api/referencia/tipos-id",
+              "docs/zonapay/api/referencia/adicionales-configuracion",
+              "docs/zonapay/api/referencia/cobro-transaccion"
+            ]
+          },
+          {
+            "group": "Formatos",
+            "pages": [
+              "docs/zonapay/api/formatos/parsear-str-res-pago",
+              "docs/zonapay/api/formatos/campos-por-medio-pago"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Recetas por lenguaje",
+        "pages": [
+          "docs/zonapay/recetas/curl",
+          "docs/zonapay/recetas/nodejs",
+          "docs/zonapay/recetas/python",
+          "docs/zonapay/recetas/csharp",
+          "docs/zonapay/recetas/php",
+          "docs/zonapay/recetas/postman"
+        ]
+      },
+      {
+        "group": "Soporte",
+        "pages": [
+          "docs/zonapay/soporte/faq",
+          "docs/zonapay/soporte/errores-comunes",
+          "docs/zonapay/soporte/sandbox"
+        ]
+      }
+    ]
+  },
     {
       "group": "Tesorería - Zonarecaudo",
       "pages": [
