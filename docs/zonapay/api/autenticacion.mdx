@@ -1,11 +1,11 @@
 ---
 title: "Autenticación"
-description: "Cómo autenticarse con el API de ZonaPagos."
+description: "Cómo autenticarse con el API de Zonapagos."
 ---
 
 ## Modelo actual
 
-ZonaPagos autentica cada request **dentro del cuerpo JSON**. No hay headers `Authorization`, ni API keys en la URL, ni JWT, ni OAuth.
+Zonapagos autentica cada request **dentro del cuerpo JSON**. No hay headers `Authorization`, ni API keys en la URL, ni JWT, ni OAuth.
 
 Cada endpoint espera tres campos de autenticación, con un detalle de naming que hay que conocer:
 
@@ -31,7 +31,7 @@ Nombre de usuario técnico. Máximo 40 caracteres.
 </ParamField>
 
 <ParamField path="str_clave / str_pwd_Comercio" type="string" required>
-Clave. Máximo 50 caracteres. Se puede cambiar desde el portal de ZonaPagos.
+Clave. Máximo 50 caracteres. Se puede cambiar desde el portal de Zonapagos.
 </ParamField>
 
 Contacta a [comercial@zonapagos.com](mailto:comercial@zonapagos.com) si aún no las tienes.
@@ -40,7 +40,7 @@ Contacta a [comercial@zonapagos.com](mailto:comercial@zonapagos.com) si aún no 
 
 <Check>**Usa siempre HTTPS.** El API solo acepta conexiones TLS.</Check>
 <Check>**Guarda las credenciales en secret manager** (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, Vault de Hashicorp, variables de entorno cifradas). Nunca en código ni en repositorios.</Check>
-<Check>**Rota la clave** periódicamente desde el portal de ZonaPagos.</Check>
+<Check>**Rota la clave** periódicamente desde el portal de Zonapagos.</Check>
 <Check>**Monitorea accesos** a tus credenciales en tu infra. Una clave comprometida permite iniciar pagos a tu nombre (aunque el dinero va a tu cuenta comercial, no a la del atacante).</Check>
 
 <Warning>
