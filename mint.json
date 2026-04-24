@@ -20,7 +20,7 @@
       ]
     },
     {
-      "group": "Pasarelas de pagos - Zonapay",
+      "group": "Zonapay - Pasarelas de pagos",
       "pages": [
         "docs/zonapay/introduccion",
       {
@@ -37,12 +37,12 @@
         "pages": [
           "docs/zonapay/guias/iniciar-pago",
           "docs/zonapay/guias/redirigir-usuario",
-          "docs/zonapay/guias/recibir-callback",
+          "docs/zonapay/guias/recibir-notificación",
           "docs/zonapay/guias/verificar-estado",
           "docs/zonapay/guias/implementar-sonda",
           "docs/zonapay/guias/manejo-errores",
           "docs/zonapay/guias/idempotencia",
-          "docs/zonapay/guias/seguridad-callback",
+          "docs/zonapay/guias/seguridad-de-notificación",
           "docs/zonapay/guias/logging",
           "docs/zonapay/guias/checklist-produccion",
           "docs/zonapay/guias/certificacion-pse"
