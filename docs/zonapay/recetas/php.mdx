@@ -1,0 +1,227 @@
+---
+title: "PHP"
+description: "Cliente con Guzzle o cURL nativo, más parser de str_res_pago."
+---
+
+## Con Guzzle (recomendado)
+
+```bash
+composer require guzzlehttp/guzzle
+```
+
+```php
+<?php
+// ZonaPagosClient.php
+require 'vendor/autoload.php';
+
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
+
+class ZonaPagosClient
+{
+    private Client $http;
+    private string $apiUrl;
+    private int $idComercio;
+    private string $usuario;
+    private string $clave;
+    private string $codigoServicio;
+
+    public function __construct()
+    {
+        $this->apiUrl = $_ENV['ZP_API_URL'] ?? 'https://www.zonapagos.com/Apis_CicloPago/api';
+        $this->idComercio = (int)$_ENV['ZP_ID_COMERCIO'];
+        $this->usuario = $_ENV['ZP_USUARIO'];
+        $this->clave = $_ENV['ZP_CLAVE'];
+        $this->codigoServicio = $_ENV['ZP_COD_SERVICIO'];
+        
+        $this->http = new Client([
+            'base_uri' => $this->apiUrl . '/',
+            'timeout' => 30,
+            'headers' => ['Content-Type' => 'application/json'],
+        ]);
+    }
+
+    public function iniciarPago(array $datos): string
+    {
+        $body = [
+            'InformacionPago' => [
+                'flt_total_con_iva' => $datos['monto'],
+                'flt_valor_iva' => $datos['iva'] ?? 0,
+                'str_id_pago' => $datos['idPago'],
+                'str_descripcion_pago' => $datos['descripcion'],
+                'str_email' => $datos['cliente']['email'] ?? '',
+                'str_id_cliente' => $datos['cliente']['documento'] ?? '',
+                'str_tipo_id' => $datos['cliente']['tipoId'] ?? '1',
+                'str_nombre_cliente' => $datos['cliente']['nombre'] ?? '',
+                'str_apellido_cliente' => $datos['cliente']['apellido'] ?? '',
+                'str_telefono_cliente' => $datos['cliente']['telefono'] ?? '',
+            ],
+            'InformacionSeguridad' => [
+                'int_id_comercio' => $this->idComercio,
+                'str_usuario' => $this->usuario,
+                'str_clave' => $this->clave,
+                'int_modalidad' => -1,
+            ],
+            'AdicionalesPago' => $datos['adicionalesPago'] ?? [],
+            'AdicionalesConfiguracion' => array_merge(
+                [['int_codigo' => 50, 'str_valor' => $this->codigoServicio]],
+                $datos['configuracionExtra'] ?? []
+            ),
+        ];
+
+        $response = $this->http->post('InicioPago', ['json' => $body]);
+        $data = json_decode($response->getBody()->getContents(), true);
+
+        if ($data['int_codigo'] !== 1) {
+            throw new \Exception("ZonaPagos error: " . ($data['str_descripcion_error'] ?? 'desconocido'));
+        }
+
+        return $data['str_url'];
+    }
+
+    public function verificarPago(string $idPago, int $noPago = -1): array
+    {
+        $body = [
+            'int_id_comercio' => $this->idComercio,
+            'str_usr_comercio' => $this->usuario,
+            'str_pwd_Comercio' => $this->clave,
+            'str_id_pago' => $idPago,
+            'int_no_pago' => $noPago,
+        ];
+
+        $response = $this->http->post('VerificacionPago', ['json' => $body]);
+        $data = json_decode($response->getBody()->getContents(), true);
+
+        if ($data['int_estado'] !== 1) {
+            throw new \Exception("Error verificación: " . ($data['str_detalle'] ?? 'desconocido'));
+        }
+
+        return [
+            'cantidadPagos' => $data['int_cantidad_pagos'],
+            'pagos' => self::parseStrResPago($data['str_res_pago'] ?? ''),
+        ];
+    }
+
+    public static function parseStrResPago(string $raw): array
+    {
+        if (trim($raw) === '') return [];
+
+        $camposBase = [
+            'int_ped_numero', 'int_n_pago', 'int_pago_parcial',
+            'int_pago_terminado', 'int_estado_pago',
+            'dbl_valor_pagado', 'dbl_total_pago', 'dbl_valor_iva_pagado',
+            'str_descripcion', 'str_id_cliente',
+            'str_nombre', 'str_apellido', 'str_telefono', 'str_email',
+            'str_campo1', 'str_campo2', 'str_campo3', 'str_campo4', 'str_campo5',
+            'dat_fecha', 'int_id_forma_pago'
+        ];
+
+        $extrasPorMedio = [
+            '29' => ['str_ticketID', 'int_codigo_servicio', 'int_codigo_banco',
+                     'str_nombre_banco', 'str_codigo_transaccion', 'int_ciclo_transaccion'],
+            '32' => ['str_ticketID', 'int_numero_tarjeta', 'str_franquicia',
+                     'int_cod_aprobacion', 'int_num_recibido'],
+            '47' => ['str_ticketID', 'int_codigo_banco'],
+            '48' => ['str_ticketID'],
+            '51' => ['str_ticketID', 'int_numero_tarjeta', 'str_franquicia',
+                     'int_cod_aprobacion', 'int_num_recibido'],
+        ];
+
+        $pagos = [];
+        foreach (explode('|;|', $raw) as $pagoRaw) {
+            $pagoRaw = trim($pagoRaw);
+            if ($pagoRaw === '') continue;
+
+            $partes = array_map('trim', explode('|', $pagoRaw));
+            $pago = [];
+
+            foreach ($camposBase as $i => $campo) {
+                $pago[$campo] = $partes[$i] ?? '';
+            }
+
+            $medio = $pago['int_id_forma_pago'] ?? '';
+            $extras = $extrasPorMedio[$medio] ?? [];
+            foreach ($extras as $i => $campo) {
+                $idx = count($camposBase) + $i;
+                $pago[$campo] = $partes[$idx] ?? '';
+            }
+
+            $pagos[] = $pago;
+        }
+        return $pagos;
+    }
+}
+```
+
+## Uso
+
+```php
+<?php
+// checkout.php
+require 'vendor/autoload.php';
+
+$zp = new ZonaPagosClient();
+
+try {
+    $url = $zp->iniciarPago([
+        'idPago' => 'ORDEN-' . time(),
+        'monto' => 50000,
+        'iva' => 7983,
+        'descripcion' => 'Pedido de prueba',
+        'cliente' => [
+            'email' => 'cliente@ejemplo.com',
+            'documento' => '1020304050',
+            'tipoId' => '1',
+            'nombre' => 'Juan',
+            'apellido' => 'Perez',
+            'telefono' => '3001234567',
+        ],
+        'configuracionExtra' => [
+            ['int_codigo' => 104, 'str_valor' => 'https://micomercio.com/retorno'],
+        ],
+    ]);
+
+    header("Location: $url");
+    exit;
+} catch (Exception $e) {
+    error_log($e->getMessage());
+    include 'error.php';
+}
+```
+
+## Callback
+
+```php
+<?php
+// retorno.php
+require 'vendor/autoload.php';
+
+$idComercio = $_GET['id_comercio'] ?? null;
+$idPago = $_GET['id_pago'] ?? null;
+
+if ((int)$idComercio !== (int)$_ENV['ZP_ID_COMERCIO']) {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
+$zp = new ZonaPagosClient();
+$resultado = $zp->verificarPago($idPago);
+$ultimo = end($resultado['pagos']);
+
+if (!$ultimo) {
+    header("Location: /pendiente?id=$idPago");
+    exit;
+}
+
+if ((int)$ultimo['int_estado_pago'] === 1) {
+    header("Location: /gracias?id=$idPago");
+} else {
+    header("Location: /pendiente?id=$idPago");
+}
+```
+
+## Ver también
+
+<Card title="Postman" icon="rocket" href="/docs/zonapay/recetas/postman">
+  Colección lista con todos los requests.
+</Card>

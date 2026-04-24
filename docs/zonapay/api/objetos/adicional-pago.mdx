@@ -1,0 +1,52 @@
+---
+title: "AdicionalPago"
+description: "Información adicional que el comercio puede enviar en un pago."
+---
+
+Array de objetos con información adicional que ZonaPagos permite configurar por comercio.
+
+<Info>
+Los códigos válidos aquí son **acordados con ZonaPagos** al activar el comercio. A diferencia de `AdicionalesConfiguracion` (que tiene un catálogo público), `AdicionalesPago` depende de tu configuración particular.
+</Info>
+
+## Estructura
+
+Cada elemento del array tiene la forma:
+
+```json
+{
+  "int_codigo": 0,
+  "str_valor": ""
+}
+```
+
+<ParamField path="int_codigo" type="integer" required>
+Identificador de la información adicional que envías. Máximo 7 dígitos.
+
+Los códigos válidos los define ZonaPagos por comercio.
+</ParamField>
+
+<ParamField path="str_valor" type="string">
+Valor de la información adicional. El formato depende del código enviado.
+</ParamField>
+
+## Ejemplo
+
+```json
+"AdicionalesPago": [
+  { "int_codigo": 111, "str_valor": "0" },
+  { "int_codigo": 112, "str_valor": "0" }
+]
+```
+
+## Si no tienes información adicional
+
+Envía el array vacío:
+
+```json
+"AdicionalesPago": []
+```
+
+## ¿Cómo saber qué códigos usar?
+
+Consulta con tu gerente comercial o escríbenos a [soporte@zonapagos.com](mailto:soporte@zonapagos.com) indicando tu `int_id_comercio`. Los códigos dependen de las integraciones y reglas de negocio específicas de tu cuenta.

@@ -1,0 +1,95 @@
+---
+title: "Pago simple con Tarjeta de Crédito"
+description: "Receta mínima para aceptar TC en tu checkout."
+---
+
+## Escenario
+
+Tu comercio quiere aceptar tarjetas de crédito (Visa, Mastercard, AmEx, Diners). Sin pagos mixtos, sin fees adicionales.
+
+## Request
+
+```json
+{
+  "InformacionPago": {
+    "flt_total_con_iva": 150000,
+    "flt_valor_iva": 23950,
+    "str_id_pago": "ORDEN-TC-001",
+    "str_descripcion_pago": "Compra en mi tienda",
+    "str_email": "cliente@ejemplo.com",
+    "str_id_cliente": "1020304050",
+    "str_tipo_id": "1",
+    "str_nombre_cliente": "Juan",
+    "str_apellido_cliente": "Perez",
+    "str_telefono_cliente": "3001234567"
+  },
+  "InformacionSeguridad": {
+    "int_id_comercio": 31416,
+    "str_usuario": "UsuarioProd",
+    "str_clave": "ClaveProd",
+    "int_modalidad": -1
+  },
+  "AdicionalesPago": [],
+  "AdicionalesConfiguracion": [
+    { "int_codigo": 50, "str_valor": "2701" }
+  ]
+}
+```
+
+<Note>
+Aunque tu flujo sea solo TC, envía el código `50` (código de servicio PSE) si tu comercio tiene PSE habilitado. Si quieres ocultar PSE en este pago específico, agrega también:
+
+```json
+{ "int_codigo": 103, "str_valor": "1" }  // Desactivar PSE
+```
+</Note>
+
+## Flujo esperado
+
+1. Usuario llega al checkout, click "Pagar con Tarjeta".
+2. Backend llama `POST /InicioPago`.
+3. Redirige a `str_url`.
+4. Usuario digita número, vencimiento, CVV, cuotas.
+5. Franquicia autoriza (síncrono en la mayoría de casos).
+6. Callback → VerificacionPago → estado final.
+
+## Posibles estados
+
+| Estado | Probabilidad | Acción |
+|--------|-------------|--------|
+| `1` (aprobado) | 80-90% | Entregar producto. |
+| `4001` (pendiente CR) | 5-15% | Revisión antifraude. Sonda. |
+| `1000` (rechazado) | 5-10% | Permitir reintento con otra tarjeta. |
+| `4000/4003` | 1-3% | Tratar como rechazo. |
+
+## Opciones útiles
+
+### Ocultar el campo "nombre en tarjeta"
+
+```json
+{ "int_codigo": 111, "str_valor": "1" }
+```
+
+Algunos bancos no requieren ese campo. Quitarlo reduce fricción.
+
+### Solo aceptar TC en este pago
+
+```json
+{ "int_codigo": 103, "str_valor": "1" }  // Desactivar PSE para este pago
+```
+
+## Datos que recibes tras aprobar
+
+En `str_res_pago` encontrarás (para `int_id_forma_pago: 32`):
+- Últimos 4 dígitos de la tarjeta.
+- Franquicia (`"Visa"`, `"Master Card"`, etc.).
+- Código de aprobación.
+- Número de recibo.
+
+Guárdalos para conciliación.
+
+## Ver también
+
+<Card title="Cobro en dólares para TC" icon="dollar-sign" href="/docs/zonapay/guias/cobro-transaccion">
+  Si vendes a clientes internacionales.
+</Card>

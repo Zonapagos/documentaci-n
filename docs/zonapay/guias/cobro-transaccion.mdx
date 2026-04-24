@@ -1,0 +1,129 @@
+---
+title: "Cobro por transacción y multimoneda"
+description: "Configurar fees adicionales y cobro en dólares."
+---
+
+Zonapay permite configurar **fees adicionales** al usuario por el uso del medio de pago, y **cobro en dólares** para tarjeta de crédito.
+
+## Fees por transacción
+
+Se configuran en `AdicionalesConfiguracion`. Dos modalidades: por porcentaje o por valor fijo.
+
+<Warning>
+Verifica con tu área legal que cobrar fees adicionales al consumidor cumple la regulación de tu país y categoría (SuperFinanciera, SIC, Ley del Consumidor).
+</Warning>
+
+### PSE con fee porcentual (1.95%)
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,    "str_valor": "tu_codigo_servicio" },
+  { "int_codigo": 500,   "str_valor": "1" },
+  { "int_codigo": 50001, "str_valor": "1" },
+  { "int_codigo": 50002, "str_valor": "0195" },
+  { "int_codigo": 50008, "str_valor": "1" }
+]
+```
+
+Sobre un pago de $100.000 el usuario ve:
+- Subtotal: $100.000
+- Fee PSE (1.95%): $1.950
+- **Total a pagar: $101.950**
+
+### PSE con fee fijo ($1.200)
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,    "str_valor": "tu_codigo_servicio" },
+  { "int_codigo": 500,   "str_valor": "1" },
+  { "int_codigo": 50001, "str_valor": "0" },
+  { "int_codigo": 50005, "str_valor": "1200" }
+]
+```
+
+### TC con fee porcentual (2.5%)
+
+Los códigos son simétricos (501, 50101-50108):
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,    "str_valor": "tu_codigo_servicio" },
+  { "int_codigo": 501,   "str_valor": "1" },
+  { "int_codigo": 50101, "str_valor": "1" },
+  { "int_codigo": 50102, "str_valor": "0250" },
+  { "int_codigo": 50108, "str_valor": "1" }
+]
+```
+
+### Formato de porcentaje
+
+Los códigos `50002` y `50102` usan un formato propietario de **4 dígitos** donde los 2 últimos son decimales:
+
+| String | Representa |
+|--------|-----------|
+| `"0050"` | 0.50% |
+| `"0195"` | 1.95% |
+| `"0200"` | 2.00% |
+| `"1000"` | 10.00% |
+| `"2500"` | 25.00% |
+
+Envía siempre como string con padding de ceros.
+
+### Rangos de aplicación
+
+Puedes limitar el rango de montos donde aplica el fee porcentual:
+
+```json
+{ "int_codigo": 50003, "str_valor": "50000" },
+{ "int_codigo": 50004, "str_valor": "5000000" }
+```
+
+Aplica el fee solo en transacciones entre $50.000 y $5.000.000.
+
+---
+
+## Cobro en dólares (TC)
+
+Permite facturar en USD a clientes internacionales con tarjeta de crédito.
+
+<Warning>
+Disponible solo para TC con franquicias que soporten multicurrency (Visa, Mastercard, AmEx, Diners). Debe estar habilitado en tu contrato comercial.
+</Warning>
+
+### Códigos
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,  "str_valor": "tu_codigo_servicio" },
+  { "int_codigo": 116, "str_valor": "1" },
+  { "int_codigo": 117, "str_valor": "US" }
+]
+```
+
+- `116`: habilita cobro en dólares (`"1"` = habilitado).
+- `117`: moneda (`"CO"` = COP, `"US"` = USD).
+
+### Consideraciones
+
+- **Tasa de cambio**: Zonapagos aplica la tasa configurada en el momento del cobro. Coordina con tu gerente comercial.
+- **Impuestos**: la obligación tributaria del IVA sigue siendo colombiana. Coordina con tu contador.
+- **Facturación fiscal**: si emites factura en Colombia, el monto se reporta en COP al tipo de cambio oficial del día.
+- **UX**: comunica al usuario que el cobro se hará en USD. Su banco puede aplicar conversión con sus propias tasas.
+
+## Buenas prácticas
+
+<Check>**Muestra el fee en tu checkout** antes del redirect, no como sorpresa al final.</Check>
+<Check>**Replica la fórmula** en tu UI para mostrar el desglose.</Check>
+<Check>**Comunícalo en tus T&C** y política de precios.</Check>
+<Check>**Considera absorber el fee en tickets bajos** y trasladarlo solo en altos.</Check>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Catálogo de códigos" icon="list" href="/docs/zonapay/api/referencia/cobro-transaccion">
+    Referencia técnica completa.
+  </Card>
+  <Card title="AdicionalesConfiguracion" icon="sliders" href="/docs/zonapay/api/referencia/adicionales-configuracion">
+    Todos los códigos disponibles.
+  </Card>
+</CardGroup>

@@ -1,0 +1,160 @@
+---
+title: "Logging recomendado"
+description: "Qué loguear para hacer debugging fácil y cumplir auditorías PSE."
+---
+
+## Principios
+
+<Check>**Loguea lo suficiente** para reconstruir qué pasó con cualquier transacción.</Check>
+<Check>**Nunca loguees credenciales** (`str_clave`, `str_pwd_Comercio`).</Check>
+<Check>**Usa logs estructurados** (JSON) para poder filtrar y buscar.</Check>
+<Check>**Incluye `str_id_pago` en cada log** relacionado con una transacción.</Check>
+<Check>**Retén logs por al menos 1 año** (requerimiento para auditorías financieras).</Check>
+
+## Campos obligatorios por log
+
+Cada log de una transacción debe incluir:
+
+| Campo | Descripción |
+|-------|-------------|
+| `str_id_pago` | ID del pago en tu comercio. |
+| `int_id_comercio` | Tu comercio (si manejas multi-comercio). |
+| `timestamp` | ISO 8601 con timezone. |
+| `level` | info / warn / error. |
+| `event` | Acción específica (`inicio_pago_ok`, `verificacion_exitosa`, etc.). |
+| `request_id` | UUID que correlacione tu request con logs en downstream. |
+
+## Eventos a loguear
+
+### En InicioPago
+
+```javascript
+// Antes del request
+logger.info("zonapagos.inicio_pago.request", {
+  str_id_pago: body.InformacionPago.str_id_pago,
+  monto: body.InformacionPago.flt_total_con_iva,
+  email: maskEmail(body.InformacionPago.str_email),
+  codigo_servicio: body.AdicionalesConfiguracion.find(c => c.int_codigo === 50)?.str_valor
+  // NO loguear str_clave
+});
+
+// Respuesta exitosa
+logger.info("zonapagos.inicio_pago.ok", {
+  str_id_pago,
+  int_codigo: data.int_codigo,
+  url_rut: extraerRutDeUrl(data.str_url),  // Solo el token, no la URL completa
+  duracion_ms: Date.now() - inicioMs
+});
+
+// Respuesta con error
+logger.warn("zonapagos.inicio_pago.error", {
+  str_id_pago,
+  int_codigo: data.int_codigo,
+  str_descripcion_error: data.str_descripcion_error,
+  duracion_ms: Date.now() - inicioMs
+});
+```
+
+### En VerificacionPago
+
+```javascript
+logger.info("zonapagos.verificacion.response", {
+  str_id_pago,
+  int_estado: data.int_estado,
+  int_error: data.int_error,
+  int_cantidad_pagos: data.int_cantidad_pagos,
+  int_estado_pago: ultimo?.int_estado_pago,
+  int_id_forma_pago: ultimo?.int_id_forma_pago,
+  str_codigo_transaccion: ultimo?.str_codigo_transaccion,  // CUS para PSE
+  duracion_ms
+});
+```
+
+### En callback del usuario
+
+```javascript
+logger.info("zonapagos.callback_recibido", {
+  str_id_pago: req.query.id_pago,
+  id_comercio: req.query.id_comercio,
+  ip_origen: req.ip,
+  user_agent: req.headers["user-agent"]
+});
+```
+
+### En la sonda
+
+```javascript
+logger.info("sonda.iteracion.inicio", { pagos_a_procesar: pendientes.length });
+logger.info("sonda.pago.consultado", { str_id_pago, estado_previo, estado_actual });
+logger.info("sonda.pago.resuelto", { str_id_pago, estado_final });
+logger.info("sonda.iteracion.fin", { duracion_ms, exitosos, errores });
+```
+
+## Funciones de sanitización
+
+```javascript
+function maskEmail(email) {
+  if (!email) return null;
+  const [user, domain] = email.split("@");
+  return user.slice(0, 2) + "***@" + domain;
+}
+
+function maskDocumento(doc) {
+  if (!doc || doc.length < 4) return "***";
+  return "***" + doc.slice(-4);
+}
+
+function extraerRutDeUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.searchParams.get("rut")?.slice(0, 8) + "...";
+  } catch { return null; }
+}
+
+function sanitizarRequestBody(body) {
+  // Remover credenciales antes de loguear el body completo
+  const copia = JSON.parse(JSON.stringify(body));
+  if (copia.InformacionSeguridad) {
+    copia.InformacionSeguridad.str_clave = "***";
+  }
+  if (copia.str_pwd_Comercio) copia.str_pwd_Comercio = "***";
+  return copia;
+}
+```
+
+## Queries útiles
+
+Con logs estructurados (ej. en Datadog, Splunk, ELK), queries típicas:
+
+```
+service:"mi-comercio" event:"zonapagos.inicio_pago.error"
+# → ver todos los errores recientes
+
+service:"mi-comercio" str_id_pago:"ORDEN-001"
+# → seguir la vida completa de un pago
+
+service:"mi-comercio" event:"sonda.*" @duracion_ms:>10000
+# → sondas lentas (>10s)
+
+service:"mi-comercio" event:"zonapagos.verificacion.response" @int_estado_pago:999
+# → pagos que quedaron en 999
+```
+
+## Alertas basadas en logs
+
+<Check>`zonapagos.inicio_pago.error` > 10 en 5 min → algo se rompió.</Check>
+<Check>`sonda.iteracion.inicio` no visto en >30 min → el cron murió.</Check>
+<Check>`zonapagos.verificacion.response` con `int_estado: 2` > 5 en 5 min → credenciales rotas.</Check>
+<Check>Ningún `zonapagos.callback_recibido` en 1 hora si normalmente hay tráfico → posible problema en la URL de retorno o DNS.</Check>
+
+## Cumplimiento y auditoría
+
+<Warning>
+**Para auditorías de PSE / SuperFinanciera:** retén al menos 1 año de logs con eventos de pago. Algunas auditorías piden hasta 5 años para transacciones financieras. Confirma con tu área legal.
+</Warning>
+
+## Ver también
+
+<Card title="Checklist producción" icon="list-check" href="/docs/zonapay/guias/checklist-produccion">
+  Incluye ítem de verificación de logging.
+</Card>

@@ -1,0 +1,149 @@
+---
+title: "Sandbox y pruebas"
+description: "Cómo probar tu integración antes de ir a producción."
+---
+
+## Estado actual del sandbox
+
+<Warning>
+**Al cierre de esta documentación**, ZonaPagos ofrece dos niveles de prueba con limitaciones:
+
+1. **Formulario web dummie** (disponible): permite probar el flujo visual completo.
+2. **API REST sandbox público** (no disponible): `dummie_ciclopago/api/*` retorna HTTP 404.
+
+_[Pendiente con TI: habilitar endpoint REST sandbox público para desarrolladores.]_
+</Warning>
+
+## Opción A: Formulario web dummie
+
+### URL y credenciales
+
+```
+URL: https://www.zonapagos.com/dummie_ciclopago/FormulariosWeb/InicioPago_Dummie.aspx
+
+int_id_comercio: 31416
+Usuario:         UsuarioDef
+Clave:           PagosN3*)
+Código servicio: 2701
+```
+
+### Qué puedes probar
+
+<Check>El flujo visual completo del ciclo de pago.</Check>
+<Check>Cómo se ve el formulario con tus configuraciones (pagos mixtos, desactivar medios, etc.).</Check>
+<Check>La UX del usuario.</Check>
+<Check>Los distintos medios de pago disponibles.</Check>
+
+### Qué NO puedes probar
+
+<Warning>
+<Icon icon="circle-xmark" /> El API REST directamente (los endpoints `dummie_ciclopago/api/*` no existen).
+<br />
+<Icon icon="circle-xmark" /> Tu integración backend real end-to-end.
+<br />
+<Icon icon="circle-xmark" /> La sonda (no hay pagos REST creados).
+<br />
+<Icon icon="circle-xmark" /> Callbacks a tu comercio.
+</Warning>
+
+### Cómo usarlo
+
+<Steps>
+  <Step title="Abre la URL del formulario">
+    Entra a `InicioPago_Dummie.aspx` en tu navegador.
+  </Step>
+  <Step title="Llena el formulario con las credenciales dummie">
+    Usa los datos de arriba como comercio. Invéntate datos del pagador.
+  </Step>
+  <Step title="Envía y completa el ciclo">
+    Sigue el flujo hasta el final como lo haría un usuario real.
+  </Step>
+  <Step title="Verifica el callback a tu servidor">
+    Si configuraste URL de retorno, revisa los logs de tu servidor para ver cómo llega el callback.
+  </Step>
+</Steps>
+
+## Opción B: Credenciales de preproducción
+
+Para probar el API REST realmente, contacta a ZonaPagos y solicita un `int_id_comercio` de preproducción.
+
+<Steps>
+  <Step title="Solicita por email">
+    Escribe a [soporte@zonapagos.com](mailto:soporte@zonapagos.com) con asunto `[PREPRODUCCIÓN REST]` indicando:
+    - Tu comercio (si ya es cliente).
+    - El tipo de integración que vas a hacer.
+    - Fechas esperadas de salida a producción.
+  </Step>
+  <Step title="Recibe credenciales temporales">
+    Te asignan un `int_id_comercio`, usuario y clave que funcionan sobre el dominio de producción pero con transacciones marcadas como prueba.
+  </Step>
+  <Step title="Pruebas con montos bajos">
+    Típicamente se trabaja con $1.000 - $5.000 COP para minimizar riesgo y costos.
+  </Step>
+  <Step title="Migra a producción real">
+    Una vez validado, te entregan credenciales productivas.
+  </Step>
+</Steps>
+
+## Opción C: Pruebas con Postman
+
+Si solo quieres ver cómo se comportan los endpoints ante distintos inputs (sin completar pagos reales), usa la [colección Postman](/docs/zonapay/recetas/postman).
+
+Responderá con errores (`int_codigo: 2`) porque las credenciales dummie no funcionan sobre el API REST, pero al menos verificas que tu estructura JSON esté correcta.
+
+## Monto mínimo y máximo
+
+<Warning>
+**No documentado en el instructivo oficial v6.0.** Los límites dependen de:
+- El medio de pago (cada banco/franquicia tiene sus propios límites).
+- Tu acuerdo comercial con ZonaPagos.
+- La configuración antifraude.
+
+Como referencia:
+- PSE: desde ~$1.000 COP hasta el límite diario de la cuenta del pagador.
+- TC: desde ~$1.000 COP hasta el cupo disponible de la tarjeta.
+- Presencial: varía según el convenio.
+
+Confirma los límites exactos con tu gerente comercial.
+</Warning>
+
+## Datos de prueba típicos
+
+Para tests de desarrollo, usa estos datos (funcionan en el formulario dummie):
+
+```json
+{
+  "cliente_aprobado": {
+    "documento": "1020304050",
+    "tipo_id": "1",
+    "email": "test@ejemplo.com",
+    "nombre": "Juan",
+    "apellido": "Perez",
+    "telefono": "3001234567"
+  },
+  "monto_tipico": 50000,
+  "iva_tipico": 7983
+}
+```
+
+## Checklist antes de pasar a producción
+
+Antes de solicitar credenciales productivas:
+
+<Check>Probé el flujo visual completo en el formulario dummie.</Check>
+<Check>Mi código maneja `int_codigo: 2` sin crashear.</Check>
+<Check>El parser de `str_res_pago` funciona contra respuestas simuladas.</Check>
+<Check>La sonda está implementada (aunque no haya podido probarla end-to-end).</Check>
+<Check>Los mensajes obligatorios al usuario están en mi UI.</Check>
+<Check>Completé el [checklist de producción](/docs/zonapay/guias/checklist-produccion).</Check>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Ambientes" icon="server" href="/docs/zonapay/empezar/ambientes">
+    URLs y endpoints.
+  </Card>
+  <Card title="Contacto" icon="envelope" href="/docs/empieza-ahora/glosario-tecnico">
+    Solicitar credenciales.
+  </Card>
+</CardGroup>

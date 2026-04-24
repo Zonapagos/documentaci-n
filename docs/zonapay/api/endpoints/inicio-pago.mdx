@@ -1,0 +1,180 @@
+---
+title: "POST /InicioPago"
+sidebarTitle: "/InicioPago"
+description: "Crea una transacción y obtiene la URL a la que redirigir al usuario."
+api: "POST /InicioPago"
+---
+
+<Info>
+**URL de producción:** `https://www.zonapagos.com/Apis_CicloPago/api/InicioPago`
+</Info>
+
+## Visión general
+
+Este endpoint crea una nueva transacción en el core transaccional de ZonaPagos y devuelve una URL a la que debes redirigir al usuario para que complete el pago.
+
+## Headers
+
+```txt
+Content-Type: application/json
+```
+
+## Cuerpo del request
+
+El body es un objeto con **cuatro propiedades** obligatorias:
+
+```json
+{
+  "InformacionPago": { ... },
+  "InformacionSeguridad": { ... },
+  "AdicionalesPago": [ ... ],
+  "AdicionalesConfiguracion": [ ... ]
+}
+```
+
+<ParamField body="InformacionPago" type="object" required>
+Datos del pago y del cliente. Ver [objeto InformacionPago](/docs/zonapay/api/objetos/informacion-pago).
+</ParamField>
+
+<ParamField body="InformacionSeguridad" type="object" required>
+Credenciales del comercio. Ver [objeto InformacionSeguridad](/docs/zonapay/api/objetos/informacion-seguridad).
+</ParamField>
+
+<ParamField body="AdicionalesPago" type="array" required>
+Array de objetos con información adicional. Puede estar vacío (`[]`). Ver [objeto AdicionalPago](/docs/zonapay/api/objetos/adicional-pago).
+</ParamField>
+
+<ParamField body="AdicionalesConfiguracion" type="array" required>
+Array de objetos con configuración del comportamiento del ciclo de pago. **Debe incluir al menos el código `50`** si aceptas PSE. Ver [objeto AdicionalConfiguracion](/docs/zonapay/api/objetos/adicional-configuracion) y el [catálogo completo](/docs/zonapay/api/referencia/adicionales-configuracion).
+</ParamField>
+
+## Cuerpo del response
+
+<ResponseField name="int_codigo" type="integer">
+`1` si la transacción fue creada correctamente. `2` si hubo error de validación o autenticación.
+</ResponseField>
+
+<ResponseField name="str_cod_error" type="string">
+Código de error interno. Vacío cuando `int_codigo: 1`.
+</ResponseField>
+
+<ResponseField name="str_descripcion_error" type="string">
+Descripción del error en texto. Vacío cuando `int_codigo: 1`.
+
+<Warning>
+Cuando `int_codigo: 2`, este campo puede contener mensajes poco descriptivos como `"Object reference not set to an instance of an object."`. _[Pendiente TI: mejorar mensajes de error.]_
+</Warning>
+</ResponseField>
+
+<ResponseField name="str_url" type="string">
+URL del ciclo de pago. Redirige al usuario aquí cuando `int_codigo: 1`. Máximo 126 caracteres.
+
+Formato:
+```
+https://www.zonapagos.com/Ciclo_Pago/Pago.aspx?rut=<token>
+```
+</ResponseField>
+
+## Ejemplo completo
+
+<CodeGroup>
+
+```json Request
+{
+  "InformacionPago": {
+    "flt_total_con_iva": 83000,
+    "flt_valor_iva": 833,
+    "str_id_pago": "180924",
+    "str_descripcion_pago": "Compra de camisa",
+    "str_email": "cliente@ejemplo.com",
+    "str_id_cliente": "123456789",
+    "str_tipo_id": "1",
+    "str_nombre_cliente": "Juan",
+    "str_apellido_cliente": "Perez",
+    "str_telefono_cliente": "3001234567",
+    "str_opcional1": "canal-web",
+    "str_opcional2": "campaña-abril"
+  },
+  "InformacionSeguridad": {
+    "int_id_comercio": 678,
+    "str_usuario": "Usuario",
+    "str_clave": "ClaveSecreta",
+    "int_modalidad": -1
+  },
+  "AdicionalesPago": [],
+  "AdicionalesConfiguracion": [
+    { "int_codigo": 50,  "str_valor": "2701" },
+    { "int_codigo": 100, "str_valor": "1" },
+    { "int_codigo": 104, "str_valor": "https://micomercio.com/retorno-pago" }
+  ]
+}
+```
+
+```json Response (éxito)
+{
+  "int_codigo": 1,
+  "str_cod_error": "",
+  "str_descripcion_error": "",
+  "str_url": "https://www.zonapagos.com/Ciclo_Pago/Pago.aspx?rut=6C44EA66B127D743C77B3247E9FE866A97C6A5730B86303836BD52D257186599"
+}
+```
+
+```json Response (error)
+{
+  "int_codigo": 2,
+  "str_cod_error": "",
+  "str_descripcion_error": "Object reference not set to an instance of an object.",
+  "str_url": null
+}
+```
+
+</CodeGroup>
+
+## Validaciones
+
+El endpoint valida en orden:
+
+1. **Estructura JSON** — si el JSON está malformado, devuelve HTTP 400.
+2. **Campos obligatorios** de `InformacionPago`: `flt_total_con_iva`, `str_id_pago`, `str_descripcion_pago`.
+3. **Credenciales** (`int_id_comercio`, `str_usuario`, `str_clave`).
+4. **`AdicionalesConfiguracion` con código `50`** si el comercio tiene PSE habilitado.
+5. **Formato de `str_id_pago`**: máximo 30 caracteres, sin ceros a la izquierda.
+6. **Montos**: `flt_total_con_iva` debe ser mayor a 0.
+7. **Consistencia**: `flt_valor_iva` no puede ser mayor a `flt_total_con_iva`.
+
+Si alguna validación falla, el response trae `int_codigo: 2` y (cuando el API coopera) un mensaje en `str_descripcion_error`.
+
+## Buenas prácticas
+
+<Check>
+**Genera `str_id_pago` únicos.** Un UUID o un contador+timestamp funciona bien. Evita reutilizar IDs.
+</Check>
+
+<Check>
+**Guarda la `str_url` junto con tu registro de pedido.** Si el usuario cierra el browser sin completar, puedes reenviarle el link por email.
+</Check>
+
+<Check>
+**Incluye el código `104`** (URL de retorno) dinámicamente si manejas múltiples dominios o ambientes. Así no dependes de la configuración estática del comercio.
+</Check>
+
+<Check>
+**Loguea la respuesta completa** (ocultando las credenciales). Facilita debugging.
+</Check>
+
+## Intenta tú mismo
+
+<Card title="Abrir en Postman" icon="rocket" href="/docs/zonapay/recetas/postman">
+  Colección lista con este endpoint y 31 requests más.
+</Card>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="POST /VerificacionPago" icon="magnifying-glass" href="/docs/zonapay/api/endpoints/verificacion-pago">
+    El endpoint que consulta el estado de la transacción que acabas de crear.
+  </Card>
+  <Card title="Callback del comercio" icon="arrow-down" href="/docs/zonapay/api/endpoints/callback">
+    Qué parámetros recibes cuando el usuario termina el pago.
+  </Card>
+</CardGroup>

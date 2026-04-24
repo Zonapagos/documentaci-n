@@ -1,0 +1,277 @@
+---
+title: "POST /VerificacionPago"
+sidebarTitle: "/VerificacionPago"
+description: "Consulta el estado de una o más transacciones."
+api: "POST /VerificacionPago"
+---
+
+<Info>
+**URL de producción:** `https://www.zonapagos.com/Apis_CicloPago/api/VerificacionPago`
+</Info>
+
+## Visión general
+
+Este endpoint consulta el estado actual de una transacción previamente iniciada con [`/InicioPago`](/docs/zonapay/api/endpoints/inicio-pago). Se usa en dos momentos:
+
+1. **Al recibir el callback del usuario** — antes de entregar el producto.
+2. **Desde la sonda** — cada 10-15 minutos para transacciones en estado pendiente.
+
+## Headers
+
+```txt
+Content-Type: application/json
+```
+
+## Cuerpo del request
+
+A diferencia de `/InicioPago`, este endpoint recibe un **objeto plano** (sin anidar):
+
+<ParamField body="int_id_comercio" type="integer" required>
+Tu `int_id_comercio`. Ej. `678`.
+</ParamField>
+
+<ParamField body="str_usr_comercio" type="string" required>
+Tu usuario técnico (mismo valor que `str_usuario` en `/InicioPago`). Máximo 40 caracteres.
+</ParamField>
+
+<ParamField body="str_pwd_Comercio" type="string" required>
+Tu clave (mismo valor que `str_clave` en `/InicioPago`). Máximo 50 caracteres.
+
+<Warning>
+Nota la **C mayúscula** en `str_pwd_Comercio`. Sí, rompe con la convención snake_case del resto del API.
+</Warning>
+</ParamField>
+
+<ParamField body="str_id_pago" type="string" required>
+El `str_id_pago` que enviaste al crear la transacción en `/InicioPago`. Máximo 30 caracteres.
+</ParamField>
+
+<ParamField body="int_no_pago" type="integer" required>
+Número de intento de pago. Usar `-1` para consultar **todos los intentos** asociados al `str_id_pago`.
+
+Si pagos mixtos están habilitados, un `str_id_pago` puede tener varios `int_no_pago`. Con `-1` recibes todos; con un valor específico, solo ese.
+</ParamField>
+
+## Cuerpo del response
+
+<ResponseField name="int_estado" type="integer">
+`1` si el API ejecutó correctamente (incluso si no hay pagos). `2` si hubo error de autenticación o validación.
+</ResponseField>
+
+<ResponseField name="int_error" type="integer">
+`0` si se encontraron pagos. `-1` si hubo error (el detalle va en `str_detalle`).
+</ResponseField>
+
+<ResponseField name="str_detalle" type="string | null">
+Texto del error cuando `int_error: -1`. `null` en caso de éxito.
+</ResponseField>
+
+<ResponseField name="int_cantidad_pagos" type="integer">
+Cantidad de intentos de pago encontrados para el `str_id_pago` consultado.
+</ResponseField>
+
+<ResponseField name="str_res_pago" type="string">
+Detalle de las transacciones en **formato de texto plano** con separadores `|` y `|;|`. Ver [cómo parsearlo](/docs/zonapay/api/formatos/parsear-str-res-pago).
+
+<Info>
+Cuando `int_cantidad_pagos: 0`, este campo viene vacío o nulo.
+</Info>
+</ResponseField>
+
+## Ejemplo completo
+
+<CodeGroup>
+
+```json Request
+{
+  "int_id_comercio": 678,
+  "str_usr_comercio": "Usuario",
+  "str_pwd_Comercio": "ClaveSecreta",
+  "str_id_pago": "180921",
+  "int_no_pago": -1
+}
+```
+
+```json Response (pago aprobado)
+{
+  "int_estado": 1,
+  "int_error": 0,
+  "str_detalle": null,
+  "int_cantidad_pagos": 2,
+  "str_res_pago": "31|3772|1|1|1|12500|12500|0|Compra de camisa|123456789|Juan|Perez|3001234567|cliente@ejemplo.com|canal-web|campaña-abril|||||21/04/2026 12:58:41|29|18092100031|2701|1022|BANCO UNION COLOMBIANO|1468228|3|;|"
+}
+```
+
+```json Response (pago no encontrado)
+{
+  "int_estado": 1,
+  "int_error": 0,
+  "str_detalle": null,
+  "int_cantidad_pagos": 0,
+  "str_res_pago": ""
+}
+```
+
+```json Response (error de autenticación)
+{
+  "int_estado": 2,
+  "int_error": -1,
+  "str_detalle": "Credenciales inválidas",
+  "int_cantidad_pagos": 0,
+  "str_res_pago": null
+}
+```
+
+</CodeGroup>
+
+## Parsear `str_res_pago`
+
+El formato es:
+
+```
+campo1|campo2|...|campoN|;|campo1|campo2|...|campoN|;|
+```
+
+Los campos vienen en un **orden fijo**. Los primeros 21 campos son comunes a todos los medios de pago; los campos siguientes dependen del medio (`int_id_forma_pago`).
+
+<CodeGroup>
+
+```javascript Node.js / JS
+function parseStrResPago(str) {
+  if (!str || str.trim() === "") return [];
+  
+  // Campos base (comunes a todos los medios)
+  const CAMPOS_BASE = [
+    "int_ped_numero",
+    "int_n_pago",
+    "int_pago_parcial",
+    "int_pago_terminado",
+    "int_estado_pago",
+    "dbl_valor_pagado",
+    "dbl_total_pago",
+    "dbl_valor_iva_pagado",
+    "str_descripcion",
+    "str_id_cliente",
+    "str_nombre",
+    "str_apellido",
+    "str_telefono",
+    "str_email",
+    "str_campo1",
+    "str_campo2",
+    "str_campo3",
+    "str_campo4",
+    "str_campo5",
+    "dat_fecha",
+    "int_id_forma_pago"
+  ];
+  
+  // Separar pagos
+  return str
+    .split("|;|")
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(pago => {
+      const partes = pago.split("|");
+      const obj = {};
+      CAMPOS_BASE.forEach((campo, i) => {
+        obj[campo] = partes[i] !== undefined ? partes[i].trim() : "";
+      });
+      // Campos extra dependen del medio de pago
+      const extras = partes.slice(CAMPOS_BASE.length);
+      obj._campos_adicionales = extras;
+      return obj;
+    });
+}
+
+// Uso
+const pagos = parseStrResPago(response.data.str_res_pago);
+console.log(`Encontrados ${pagos.length} intento(s) de pago`);
+pagos.forEach(p => console.log(`${p.str_descripcion}: estado ${p.int_estado_pago}`));
+```
+
+```python Python
+def parse_str_res_pago(raw: str) -> list[dict]:
+    if not raw or not raw.strip():
+        return []
+    
+    CAMPOS_BASE = [
+        "int_ped_numero", "int_n_pago", "int_pago_parcial",
+        "int_pago_terminado", "int_estado_pago",
+        "dbl_valor_pagado", "dbl_total_pago", "dbl_valor_iva_pagado",
+        "str_descripcion", "str_id_cliente",
+        "str_nombre", "str_apellido", "str_telefono", "str_email",
+        "str_campo1", "str_campo2", "str_campo3", "str_campo4", "str_campo5",
+        "dat_fecha", "int_id_forma_pago"
+    ]
+    
+    pagos = []
+    for pago_raw in [p.strip() for p in raw.split("|;|") if p.strip()]:
+        partes = [x.strip() for x in pago_raw.split("|")]
+        obj = {campo: partes[i] if i < len(partes) else "" 
+               for i, campo in enumerate(CAMPOS_BASE)}
+        obj["_campos_adicionales"] = partes[len(CAMPOS_BASE):]
+        pagos.append(obj)
+    return pagos
+```
+
+```csharp C#
+public static List<Dictionary<string, string>> ParseStrResPago(string raw)
+{
+    var result = new List<Dictionary<string, string>>();
+    if (string.IsNullOrWhiteSpace(raw)) return result;
+    
+    var CAMPOS_BASE = new[]
+    {
+        "int_ped_numero", "int_n_pago", "int_pago_parcial",
+        "int_pago_terminado", "int_estado_pago",
+        "dbl_valor_pagado", "dbl_total_pago", "dbl_valor_iva_pagado",
+        "str_descripcion", "str_id_cliente",
+        "str_nombre", "str_apellido", "str_telefono", "str_email",
+        "str_campo1", "str_campo2", "str_campo3", "str_campo4", "str_campo5",
+        "dat_fecha", "int_id_forma_pago"
+    };
+    
+    var pagosRaw = raw.Split(new[] { "|;|" }, StringSplitOptions.None)
+                      .Select(p => p.Trim())
+                      .Where(p => p.Length > 0);
+    
+    foreach (var pagoRaw in pagosRaw)
+    {
+        var partes = pagoRaw.Split('|').Select(x => x.Trim()).ToArray();
+        var obj = new Dictionary<string, string>();
+        for (int i = 0; i < CAMPOS_BASE.Length; i++)
+            obj[CAMPOS_BASE[i]] = i < partes.Length ? partes[i] : "";
+        result.Add(obj);
+    }
+    return result;
+}
+```
+
+</CodeGroup>
+
+Ver el detalle de los **campos adicionales por medio de pago** en [Campos por medio de pago](/docs/zonapay/api/formatos/campos-por-medio-pago).
+
+## ¿Cuándo consultar?
+
+<Steps>
+  <Step title="Al recibir el callback del usuario">
+    ZonaPagos redirige al usuario a tu URL de retorno con `id_comercio` e `id_pago`. Al recibirlo, tu backend debe consultar `VerificacionPago` **antes** de mostrarle el estado al usuario.
+  </Step>
+  <Step title="Desde la sonda (obligatorio para PSE)">
+    Para pagos en estado `999`, `4001`, `4000`, `4003`, tu backend debe consultar periódicamente hasta recibir un estado definitivo.
+  </Step>
+  <Step title="Al reprocesar manualmente">
+    Si un pago quedó en estado dudoso, tu equipo de soporte puede consultar desde un panel admin.
+  </Step>
+</Steps>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Estados de pago" icon="list-check" href="/docs/zonapay/api/referencia/estados-pago">
+    Todos los valores de `int_estado_pago` y qué hacer con cada uno.
+  </Card>
+  <Card title="Implementar sonda" icon="satellite-dish" href="/docs/zonapay/guias/implementar-sonda">
+    Guía paso a paso del job programado que consulta pagos pendientes.
+  </Card>
+</CardGroup>

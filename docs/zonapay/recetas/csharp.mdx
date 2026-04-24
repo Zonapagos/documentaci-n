@@ -1,0 +1,286 @@
+---
+title: "C# / .NET"
+description: "Cliente completo con HttpClient, record types y parser en C#."
+---
+
+## Dependencias
+
+Con `dotnet`:
+
+```bash
+dotnet add package System.Text.Json
+```
+
+`HttpClient` viene en el framework estándar.
+
+## Modelos
+
+```csharp
+// Models.cs
+using System.Text.Json.Serialization;
+
+public record InformacionPago
+{
+    public decimal flt_total_con_iva { get; init; }
+    public decimal flt_valor_iva { get; init; }
+    public string str_id_pago { get; init; } = "";
+    public string str_descripcion_pago { get; init; } = "";
+    public string? str_email { get; init; }
+    public string? str_id_cliente { get; init; }
+    public string? str_tipo_id { get; init; }
+    public string? str_nombre_cliente { get; init; }
+    public string? str_apellido_cliente { get; init; }
+    public string? str_telefono_cliente { get; init; }
+    public string? str_opcional1 { get; init; }
+    public string? str_opcional2 { get; init; }
+    public string? str_opcional3 { get; init; }
+    public string? str_opcional4 { get; init; }
+    public string? str_opcional5 { get; init; }
+}
+
+public record InformacionSeguridad
+{
+    public int int_id_comercio { get; init; }
+    public string str_usuario { get; init; } = "";
+    public string str_clave { get; init; } = "";
+    public int int_modalidad { get; init; } = -1;
+}
+
+public record AdicionalConfiguracion(int int_codigo, string str_valor);
+public record AdicionalPago(int int_codigo, string str_valor);
+
+public record SolicitudInicioPago
+{
+    public InformacionPago InformacionPago { get; init; } = new();
+    public InformacionSeguridad InformacionSeguridad { get; init; } = new();
+    public List<AdicionalPago> AdicionalesPago { get; init; } = new();
+    public List<AdicionalConfiguracion> AdicionalesConfiguracion { get; init; } = new();
+}
+
+public record RespuestaInicioPago(
+    int int_codigo,
+    string? str_cod_error,
+    string? str_descripcion_error,
+    string? str_url
+);
+
+public record SolicitudVerificacion(
+    int int_id_comercio,
+    string str_usr_comercio,
+    string str_pwd_Comercio,
+    string str_id_pago,
+    int int_no_pago = -1
+);
+
+public record RespuestaVerificacion(
+    int int_estado,
+    int int_error,
+    string? str_detalle,
+    int int_cantidad_pagos,
+    string? str_res_pago
+);
+```
+
+## Cliente
+
+```csharp
+// ZonaPagosClient.cs
+using System.Net.Http.Json;
+using System.Text.Json;
+
+public class ZonaPagosClient
+{
+    private readonly HttpClient _http;
+    private readonly string _apiUrl;
+    private readonly int _idComercio;
+    private readonly string _usuario;
+    private readonly string _clave;
+    private readonly string _codigoServicio;
+
+    public ZonaPagosClient(HttpClient http, IConfiguration config)
+    {
+        _http = http;
+        _http.Timeout = TimeSpan.FromSeconds(30);
+        _apiUrl = config["ZonaPagos:ApiUrl"] ?? "https://www.zonapagos.com/Apis_CicloPago/api";
+        _idComercio = int.Parse(config["ZonaPagos:IdComercio"]!);
+        _usuario = config["ZonaPagos:Usuario"]!;
+        _clave = config["ZonaPagos:Clave"]!;
+        _codigoServicio = config["ZonaPagos:CodigoServicio"]!;
+    }
+
+    public async Task<string> IniciarPagoAsync(
+        string idPago,
+        decimal monto,
+        decimal iva,
+        string descripcion,
+        string emailCliente,
+        string documentoCliente,
+        string tipoIdCliente = "1",
+        string nombreCliente = "",
+        string apellidoCliente = "",
+        string telefonoCliente = "",
+        List<AdicionalConfiguracion>? configExtra = null)
+    {
+        var request = new SolicitudInicioPago
+        {
+            InformacionPago = new InformacionPago
+            {
+                flt_total_con_iva = monto,
+                flt_valor_iva = iva,
+                str_id_pago = idPago,
+                str_descripcion_pago = descripcion,
+                str_email = emailCliente,
+                str_id_cliente = documentoCliente,
+                str_tipo_id = tipoIdCliente,
+                str_nombre_cliente = nombreCliente,
+                str_apellido_cliente = apellidoCliente,
+                str_telefono_cliente = telefonoCliente
+            },
+            InformacionSeguridad = new InformacionSeguridad
+            {
+                int_id_comercio = _idComercio,
+                str_usuario = _usuario,
+                str_clave = _clave,
+                int_modalidad = -1
+            },
+            AdicionalesConfiguracion = new List<AdicionalConfiguracion>
+            {
+                new(50, _codigoServicio)
+            }
+        };
+
+        if (configExtra != null)
+            request.AdicionalesConfiguracion.AddRange(configExtra);
+
+        var response = await _http.PostAsJsonAsync($"{_apiUrl}/InicioPago", request);
+        response.EnsureSuccessStatusCode();
+        
+        var data = await response.Content.ReadFromJsonAsync<RespuestaInicioPago>()
+            ?? throw new Exception("Respuesta nula de ZonaPagos");
+
+        if (data.int_codigo != 1)
+            throw new ZonaPagosException(data.str_descripcion_error ?? "Error desconocido", data.int_codigo);
+
+        return data.str_url!;
+    }
+
+    public async Task<RespuestaVerificacion> VerificarPagoAsync(string idPago, int noPago = -1)
+    {
+        var request = new SolicitudVerificacion(_idComercio, _usuario, _clave, idPago, noPago);
+        var response = await _http.PostAsJsonAsync($"{_apiUrl}/VerificacionPago", request);
+        response.EnsureSuccessStatusCode();
+        
+        var data = await response.Content.ReadFromJsonAsync<RespuestaVerificacion>()
+            ?? throw new Exception("Respuesta nula");
+
+        if (data.int_estado != 1)
+            throw new ZonaPagosException(data.str_detalle ?? "Error", 2);
+
+        return data;
+    }
+}
+
+public class ZonaPagosException : Exception
+{
+    public int IntCodigo { get; }
+    public ZonaPagosException(string mensaje, int intCodigo) : base(mensaje)
+        => IntCodigo = intCodigo;
+}
+```
+
+## Parser
+
+```csharp
+// StrResPagoParser.cs
+public static class StrResPagoParser
+{
+    private static readonly string[] CamposBase = new[]
+    {
+        "int_ped_numero", "int_n_pago", "int_pago_parcial",
+        "int_pago_terminado", "int_estado_pago",
+        "dbl_valor_pagado", "dbl_total_pago", "dbl_valor_iva_pagado",
+        "str_descripcion", "str_id_cliente",
+        "str_nombre", "str_apellido", "str_telefono", "str_email",
+        "str_campo1", "str_campo2", "str_campo3", "str_campo4", "str_campo5",
+        "dat_fecha", "int_id_forma_pago"
+    };
+
+    private static readonly Dictionary<string, string[]> ExtrasPorMedio = new()
+    {
+        ["29"] = new[] { "str_ticketID", "int_codigo_servicio", "int_codigo_banco",
+                          "str_nombre_banco", "str_codigo_transaccion", "int_ciclo_transaccion" },
+        ["32"] = new[] { "str_ticketID", "int_numero_tarjeta", "str_franquicia",
+                          "int_cod_aprobacion", "int_num_recibido" },
+        ["47"] = new[] { "str_ticketID", "int_codigo_banco" },
+        ["48"] = new[] { "str_ticketID" },
+        ["51"] = new[] { "str_ticketID", "int_numero_tarjeta", "str_franquicia",
+                          "int_cod_aprobacion", "int_num_recibido" }
+    };
+
+    public static List<Dictionary<string, string>> Parse(string? raw)
+    {
+        var result = new List<Dictionary<string, string>>();
+        if (string.IsNullOrWhiteSpace(raw)) return result;
+
+        var pagosRaw = raw
+            .Split(new[] { "|;|" }, StringSplitOptions.None)
+            .Select(p => p.Trim())
+            .Where(p => p.Length > 0);
+
+        foreach (var pagoRaw in pagosRaw)
+        {
+            var partes = pagoRaw.Split('|').Select(x => x.Trim()).ToArray();
+            var pago = new Dictionary<string, string>();
+
+            for (int i = 0; i < CamposBase.Length; i++)
+                pago[CamposBase[i]] = i < partes.Length ? partes[i] : "";
+
+            var medio = pago.GetValueOrDefault("int_id_forma_pago", "");
+            if (ExtrasPorMedio.TryGetValue(medio, out var extras))
+            {
+                for (int i = 0; i < extras.Length; i++)
+                {
+                    var idx = CamposBase.Length + i;
+                    pago[extras[i]] = idx < partes.Length ? partes[idx] : "";
+                }
+            }
+            result.Add(pago);
+        }
+
+        return result;
+    }
+}
+```
+
+## Uso en ASP.NET Core
+
+```csharp
+// Program.cs
+builder.Services.AddHttpClient<ZonaPagosClient>();
+
+app.MapPost("/checkout", async (CheckoutDto dto, ZonaPagosClient zp) =>
+{
+    var idPago = $"ORDEN-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+    var url = await zp.IniciarPagoAsync(
+        idPago, dto.Monto, dto.Iva, dto.Descripcion,
+        dto.Cliente.Email, dto.Cliente.Documento);
+    return Results.Redirect(url);
+});
+
+app.MapGet("/retorno", async (int id_comercio, string id_pago, ZonaPagosClient zp) =>
+{
+    var resp = await zp.VerificarPagoAsync(id_pago);
+    var pagos = StrResPagoParser.Parse(resp.str_res_pago);
+    var ultimo = pagos.LastOrDefault();
+    
+    if (ultimo?.GetValueOrDefault("int_estado_pago") == "1")
+        return Results.Redirect($"/gracias?id={id_pago}");
+    return Results.Redirect($"/pendiente?id={id_pago}");
+});
+```
+
+## Ver también
+
+<Card title="Node.js" icon="node-js" href="/docs/zonapay/recetas/nodejs">
+  Equivalente en JavaScript.
+</Card>

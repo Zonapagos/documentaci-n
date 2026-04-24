@@ -1,0 +1,165 @@
+---
+title: "Preguntas frecuentes (FAQ)"
+description: "Las 15 dudas más comunes al integrar con ZonaPagos."
+---
+
+<AccordionGroup>
+
+<Accordion title="¿Puedo probar el API REST sin credenciales de producción?">
+Al cierre de esta documentación **no hay un endpoint REST sandbox público**. El formulario ASPX dummie (`dummie_ciclopago/FormulariosWeb/InicioPago_Dummie.aspx`) sirve para probar el flujo visual, pero `dummie_ciclopago/api/*` retorna HTTP 404.
+
+Para probar el API REST, contacta a [soporte@zonapagos.com](mailto:soporte@zonapagos.com) para solicitar credenciales de preproducción.
+</Accordion>
+
+<Accordion title="¿Qué valor debo enviar en int_modalidad, -1 o 1?">
+El instructivo oficial v6.0 tiene una contradicción en este punto: el texto dice "siempre enviar `-1`", pero el ejemplo JSON usa `1`.
+
+Recomendación provisional: usar `-1` siguiendo el texto normativo. _[Pendiente de confirmación con TI.]_
+</Accordion>
+
+<Accordion title="¿Por qué recibo 'Object reference not set to an instance of an object.'?">
+Ese es un mensaje de excepción .NET que el API devuelve cuando encuentra un problema de validación interno. Causas típicas:
+
+- Credenciales inválidas.
+- `int_id_comercio` inexistente.
+- Falta algún objeto top-level en el body (`InformacionPago`, `InformacionSeguridad`, `AdicionalesPago`, `AdicionalesConfiguracion`).
+- Estás usando credenciales del ambiente dummie contra el API REST de producción.
+
+Revisa credenciales y estructura del JSON. Si persiste, contacta a soporte con el timestamp del intento.
+</Accordion>
+
+<Accordion title="¿Por qué el nombre del campo es 'str_usuario' en un endpoint y 'str_usr_comercio' en otro?">
+Es así en el API. Contienen el mismo valor pero con nombres distintos:
+
+| InicioPago | VerificacionPago |
+|-----------|------------------|
+| `str_usuario` | `str_usr_comercio` |
+| `str_clave` | `str_pwd_Comercio` (C mayúscula) |
+
+No es un typo, es la convención histórica del API.
+</Accordion>
+
+<Accordion title="¿Cómo sé cuándo un pago fue aprobado?">
+Cuando `int_estado_pago === 1` en la respuesta de `/VerificacionPago`. Este es el único estado que significa aprobado. Nunca asumas aprobación porque:
+
+- Recibiste el callback (puede ser falso).
+- `int_codigo: 1` en `InicioPago` (solo significa que creaste la transacción).
+- El usuario dice "ya pagué".
+</Accordion>
+
+<Accordion title="¿Puedo reutilizar un str_id_pago si el pago fue rechazado?">
+**No.** Cada pago debe tener un `str_id_pago` único. Si el usuario quiere reintentar, genera un nuevo ID (ej. `ORDEN-001-R1`, `ORDEN-001-R2`).
+
+Reutilizar IDs puede causar conflictos en el core transaccional y errores difíciles de depurar.
+</Accordion>
+
+<Accordion title="¿Cómo parseo el campo str_res_pago?">
+Es texto plano con separadores `|` (campos) y `|;|` (pagos). Tenemos parsers listos para copiar en:
+
+- [JavaScript / Node.js](/docs/zonapay/recetas/nodejs)
+- [Python](/docs/zonapay/recetas/python)
+- [C#](/docs/zonapay/recetas/csharp)
+- [PHP](/docs/zonapay/recetas/php)
+
+Ver también [Parsear str_res_pago](/docs/zonapay/api/formatos/parsear-str-res-pago) con el código detallado.
+</Accordion>
+
+<Accordion title="¿La sonda es realmente obligatoria?">
+**Sí, si aceptas PSE.** Sin sonda, PSE / ACH Colombia no certifica tu comercio y no puedes operar PSE en producción.
+
+Para comercios que solo aceptan tarjeta de crédito (sin PSE), la sonda es altamente recomendada pero no exigida por certificación. Te recomendamos implementarla igual para manejar el estado `4001` (pendiente CR).
+</Accordion>
+
+<Accordion title="¿Qué hago cuando int_estado_pago = 4001?">
+Significa que la franquicia retuvo la tarjeta para revisión antifraude. El pago puede resolverse en minutos o tardar hasta **1 día y fracción**. Pasado ese tiempo, queda automáticamente rechazado.
+
+Tu acción:
+1. Mostrar el [mensaje obligatorio](/docs/zonapay/guias/certificacion-pse) al usuario.
+2. Configurar tu sonda para consultar cada 10-15 min.
+3. No permitir al usuario reintentar con el mismo `str_id_pago` mientras esté en CR.
+</Accordion>
+
+<Accordion title="¿El callback del comercio está firmado?">
+**No.** El callback solo incluye `id_comercio` e `id_pago` sin firma HMAC ni token verificable.
+
+**Mitigación obligatoria:** siempre verifica el estado real llamando `/VerificacionPago` desde tu backend. Nunca entregues producto confiando solo en el callback.
+
+_[Pendiente con TI: evaluar incorporación de firma al callback.]_
+</Accordion>
+
+<Accordion title="¿Cómo manejo los ceros a la izquierda en str_id_pago?">
+**No los uses.** El documento oficial indica que no se deben usar ceros al inicio. Ejemplos:
+
+- ✅ `"ORDEN-001"`, `"180924"`, `"FAC-2026"`
+- ❌ `"009"`, `"0123"`, `"00ORDEN"`
+
+Si tu sistema interno genera IDs con ceros, añade un prefijo: `"P-009"` en lugar de `"009"`.
+</Accordion>
+
+<Accordion title="¿Cuánto tarda un pago PSE en confirmarse?">
+Depende del banco:
+
+- La mayoría: 30 segundos a 5 minutos.
+- Casos con red saturada: hasta 30 minutos en estado `999`.
+- Casos excepcionales: hasta algunas horas.
+
+Tu sonda debe manejar los tiempos variables. Si un pago lleva más de 24 horas en `999`, algo raro está pasando — revisa manualmente o contacta soporte.
+</Accordion>
+
+<Accordion title="¿Cómo convierto 1.95% al formato 0195?">
+El campo acepta 4 dígitos donde los dos últimos son decimales:
+
+```
+0.50%  →  "0050"
+1.00%  →  "0100"
+1.95%  →  "0195"
+2.00%  →  "0200"
+10.00% →  "1000"
+25.00% →  "2500"
+```
+
+Envía siempre como **string** con padding de ceros a la izquierda.
+
+<Warning>
+La documentación oficial también menciona una convención alternativa de 2 dígitos (`"02"` = 2%). Para evitar ambigüedades usa la de 4 dígitos.
+</Warning>
+</Accordion>
+
+<Accordion title="¿Qué significa int_pago_terminado?">
+Es diferente de `int_estado_pago`:
+
+- `int_pago_terminado: 200` → pago iniciado (aún no ha pasado nada).
+- `int_pago_terminado: 1` → pago cerrado (aprobado o rechazado).
+- `int_pago_terminado: 2` → pago mixto incompleto (aún faltan sub-pagos por terminar).
+
+Para saber si fue aprobado, mira `int_estado_pago` (debe ser `1`).
+</Accordion>
+
+<Accordion title="¿ZonaPagos envía email de confirmación al cliente?">
+Sí, si enviaste `str_email` en el InicioPago. ZonaPagos le manda un **comprobante del pago** (estilo recibo con el CUS).
+
+Esto **no reemplaza** tu email de "gracias por tu compra" con el detalle del producto — eso lo debes enviar tú.
+</Accordion>
+
+<Accordion title="¿Qué datos necesito para conciliar pagos con mi banco / franquicia?">
+Los campos clave que debes persistir:
+
+- **PSE:** `str_codigo_transaccion` (CUS), `int_codigo_banco`, `str_nombre_banco`, `dat_fecha`.
+- **TC:** `int_cod_aprobacion`, `str_franquicia`, `int_numero_tarjeta` (últimos 4), `dat_fecha`.
+- **Otros:** `str_ticketID`, `int_codigo_banco`.
+
+Estos datos te los entregan bancos y franquicias en los archivos de liquidación diaria.
+</Accordion>
+
+</AccordionGroup>
+
+## ¿No encuentras tu pregunta?
+
+<CardGroup cols={2}>
+  <Card title="Errores comunes" icon="triangle-exclamation" href="/docs/zonapay/soporte/errores-comunes">
+    Tabla de errores con diagnóstico.
+  </Card>
+  <Card title="Contactar soporte" icon="envelope" href="/docs/empieza-ahora/glosario-tecnico">
+    Escríbenos con los detalles de tu caso.
+  </Card>
+</CardGroup>

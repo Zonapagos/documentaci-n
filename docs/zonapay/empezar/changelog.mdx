@@ -1,0 +1,129 @@
+---
+title: "Changelog"
+description: "Historial de cambios del API y de esta documentación."
+---
+
+<Update label="v6.1 — Abril 2026" description="Documentación Mintlify (esta publicación)">
+
+### Cambios en la documentación
+
+- Nueva estructura de navegación en Mintlify con tabs separadas: Empezar, Guías, API Reference, Recetas, Soporte.
+- Glosario de siglas agregado al inicio del documento.
+- Quickstart de 10 minutos con código en cURL, Node.js, Python.
+- Diagramas de secuencia con Mermaid para el flujo completo y la sonda.
+- Parser de referencia completo para `str_res_pago` en JavaScript, Python y C#.
+- FAQ con los 15 errores más comunes al integrar.
+- Tabla consolidada de todos los estados de `int_estado_pago` con acciones recomendadas.
+- Endpoints separados para `InicioPago` y `VerificacionPago` con ejemplos en Postman embebidos.
+
+### Hallazgos pendientes de validación con TI
+
+- Valor correcto de `int_modalidad` (doc oficial tiene contradicción: texto dice `-1`, ejemplo JSON usa `1`).
+- Disponibilidad de un endpoint REST sandbox público.
+- Normalización de mensajes de error (actualmente se expone `"Object reference not set…"` crudo).
+- Documentación del algoritmo de hash del token `rut` en la URL del ciclo de pago.
+
+</Update>
+
+<Update label="v6.0 — Junio 2025" description="Versión del instructivo oficial I-TI-008">
+
+- Se modificaron los parámetros de retorno de `InicioPago` (sección 7.1.2).
+- Se consolidaron ejemplos de integración en C#.
+
+</Update>
+
+<Update label="v5.0 — Mayo 2025" description="">
+
+- Se eliminaron los estados obsoletos `777`, `1003` y `1004`.
+
+</Update>
+
+<Update label="v4.0 — Agosto 2024" description="">
+
+- Se modificaron los parámetros de retorno (sección 7.1.2).
+
+</Update>
+
+<Update label="v3.0 — Marzo 2024" description="Nuevos medios de pago">
+
+- Se agregan los códigos `int_id_forma_pago`:
+  - `47` Sistecrédito
+  - `48` Bancolombia
+  - `51` Codensa
+  - `77` Mefía
+- Se eliminan los códigos `42` (Gana) y `45` (Tarjeta Tuya).
+- Nueva información específica para los medios de pago 47, 48 y 51.
+
+</Update>
+
+<Update label="v2.9 — Octubre 2021" description="">
+
+- Corrección de párrafo duplicado en la sección de sonda.
+
+</Update>
+
+<Update label="v2.8 — Septiembre 2021" description="">
+
+- Se agrega el estado `1003` en `int_estado_pago` (posteriormente obsoletado en v5.0).
+
+</Update>
+
+<Update label="v2.6 — Octubre 2020" description="">
+
+- Modificación del tipo y tamaño de `int_cod_aprobacion` para el medio de pago 32 (TC).
+
+</Update>
+
+<Update label="v2.5 — Septiembre 2020" description="">
+
+- Nota aclaratoria sobre `int_cod_aprobacion` para TC.
+
+</Update>
+
+<Update label="v2.4 — Marzo 2020" description="Obligatoriedad de campos">
+
+- Se actualiza la obligatoriedad de los siguientes parámetros:
+  - `flt_valor_iva`
+  - `str_id_cliente`
+  - `str_tipo_id`
+  - `int_modalidad`
+  - `int_no_pago`
+- Modificación del diagrama general y del diagrama de funcionamiento de la sonda.
+
+</Update>
+
+<Update label="v2.3 — Junio 2019" description="Reorganización">
+
+- Se agrega el estado `1002` a `int_estado_pago`.
+- Se corrige el tamaño de `str_id_pago` y la descripción de los campos opcionales.
+- Nota aclaratoria en `id_pago`: no puede tener ceros a la izquierda.
+
+</Update>
+
+<Update label="v2.2 — Mayo 2019" description="Cobro en dólares y cobro por transacción">
+
+- Nuevos códigos de `AdicionalesConfiguracion`:
+  - `116`: habilita cobro en dólares para TC.
+  - `117`: moneda de conversión (CO/US).
+- Se agregan parámetros para cobro por transacción en PSE y TC: `500`, `50001-50008`, `501`, `50101-50108`.
+
+</Update>
+
+<Update label="v2.0 — Marzo 2019" description="">
+
+- Se agrega `int_ped_numero` en los parámetros de salida.
+- Se corrigen las variables `int_cantidad_pago → int_cantidad_pagos` y `str_re_pago → str_res_pago`.
+
+</Update>
+
+<Update label="v1.0 — Septiembre 2018" description="Versión inicial">
+
+- Publicación inicial del instructivo para el nuevo core transaccional.
+
+</Update>
+
+---
+
+## Suscríbete a actualizaciones
+
+Para recibir notificaciones de cambios en el API, escríbenos a [soporte@zonapagos.com](mailto:soporte@zonapagos.com) con el asunto `[SUSCRIPCIÓN CHANGELOG]` indicando tu `int_id_comercio` y el correo técnico de contacto.

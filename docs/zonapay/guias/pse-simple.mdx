@@ -1,0 +1,136 @@
+---
+title: "Pago simple con PSE"
+description: "Receta mínima para aceptar PSE en tu checkout."
+---
+
+## Escenario
+
+Tu comercio quiere aceptar débitos PSE por un monto fijo. Sin pagos mixtos, sin fraccionamiento, sin fees adicionales.
+
+## Pre-requisitos
+
+<Check>Credenciales activas con PSE habilitado.</Check>
+<Check>Código de servicio PSE asignado.</Check>
+<Check>URL de retorno configurada (estática o dinámica).</Check>
+
+## Request
+
+```json
+{
+  "InformacionPago": {
+    "flt_total_con_iva": 50000,
+    "flt_valor_iva": 7983,
+    "str_id_pago": "ORDEN-001",
+    "str_descripcion_pago": "Suscripción Plan Básico",
+    "str_email": "cliente@ejemplo.com",
+    "str_id_cliente": "1020304050",
+    "str_tipo_id": "1",
+    "str_nombre_cliente": "Juan",
+    "str_apellido_cliente": "Perez",
+    "str_telefono_cliente": "3001234567"
+  },
+  "InformacionSeguridad": {
+    "int_id_comercio": 31416,
+    "str_usuario": "UsuarioProd",
+    "str_clave": "ClaveProd",
+    "int_modalidad": -1
+  },
+  "AdicionalesPago": [],
+  "AdicionalesConfiguracion": [
+    { "int_codigo": 50, "str_valor": "2701" }
+  ]
+}
+```
+
+<Info>
+Nota que `flt_valor_iva`, `str_id_cliente` y `str_tipo_id` son obligatorios para certificación PSE.
+</Info>
+
+## Flujo esperado
+
+1. Usuario llega a tu checkout, click "Pagar con PSE".
+2. Backend llama `POST /InicioPago` con el JSON de arriba.
+3. Backend redirige al usuario a `str_url`.
+4. Usuario elige su banco (Bancolombia, Davivienda, etc.).
+5. Es redirigido al sitio del banco.
+6. Autoriza el débito con sus credenciales bancarias.
+7. Banco confirma a ACH → ACH notifica a ZonaPagos.
+8. ZonaPagos redirige al usuario a la URL de retorno del comercio.
+9. Callback llega → backend llama `VerificacionPago` → estado final.
+
+## Posibles estados finales
+
+| Estado | Probabilidad | Acción |
+|--------|-------------|--------|
+| `1` (aprobado) | 70-80% | Entregar producto. |
+| `999` (pendiente por finalizar) | 5-15% | Sonda; mostrar mensaje certificación. |
+| `1000` (rechazado) | 10-15% | Permitir reintento. |
+| `1001` (error ACH) | 1-3% | Mostrar error genérico. |
+| `888` (no inició) | 5-10% | Abandono, marcar como tal tras 30 min. |
+
+## Código
+
+<CodeGroup>
+
+```javascript Node.js
+import axios from "axios";
+
+export async function checkoutPSE(req, res) {
+  const { pedidoId, monto, iva, cliente } = req.body;
+  
+  const body = {
+    InformacionPago: {
+      flt_total_con_iva: monto,
+      flt_valor_iva: iva,
+      str_id_pago: pedidoId,
+      str_descripcion_pago: `Pedido ${pedidoId}`,
+      str_email: cliente.email,
+      str_id_cliente: cliente.documento,
+      str_tipo_id: cliente.tipoId, // "1" para CC
+      str_nombre_cliente: cliente.nombre,
+      str_apellido_cliente: cliente.apellido,
+      str_telefono_cliente: cliente.telefono
+    },
+    InformacionSeguridad: {
+      int_id_comercio: Number(process.env.ZP_ID_COMERCIO),
+      str_usuario: process.env.ZP_USUARIO,
+      str_clave: process.env.ZP_CLAVE,
+      int_modalidad: -1
+    },
+    AdicionalesPago: [],
+    AdicionalesConfiguracion: [
+      { int_codigo: 50, str_valor: process.env.ZP_COD_SERVICIO }
+    ]
+  };
+
+  const { data } = await axios.post(`${process.env.ZP_API_URL}/InicioPago`, body);
+  
+  if (data.int_codigo !== 1) {
+    logger.error("PSE init falló", { error: data.str_descripcion_error });
+    return res.status(500).render("error-pago");
+  }
+
+  await db.pagos.create({
+    str_id_pago: pedidoId,
+    estado_local: "pendiente",
+    flt_total_con_iva: monto,
+    url_ciclo: data.str_url,
+    dt_inicio: new Date()
+  });
+  
+  return res.redirect(data.str_url);
+}
+```
+
+</CodeGroup>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="TC simple" icon="credit-card" href="/docs/zonapay/guias/tc-simple">
+    Misma receta para tarjeta de crédito.
+  </Card>
+  <Card title="Certificación PSE" icon="shield-check" href="/docs/zonapay/guias/certificacion-pse">
+    Antes de ir a producción con PSE.
+  </Card>
+</CardGroup>

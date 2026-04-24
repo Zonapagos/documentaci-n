@@ -1,0 +1,188 @@
+---
+title: "AdicionalesConfiguracion"
+description: "Catálogo completo de códigos para configurar el comportamiento del ciclo de pago."
+---
+
+Array de objetos enviado en `/InicioPago` que configura cómo se comporta el ciclo de pago. Cada elemento tiene la forma:
+
+```json
+{ "int_codigo": 50, "str_valor": "2701" }
+```
+
+## Objeto base
+
+<ParamField path="int_codigo" type="integer" required>
+Código de la configuración. Ver tabla abajo.
+</ParamField>
+
+<ParamField path="str_valor" type="string" required>
+Valor de la configuración. El formato depende del código.
+</ParamField>
+
+## Catálogo de códigos
+
+### Configuración general
+
+| Código | Obligatorio | Valor | Descripción |
+|--------|-------------|-------|-------------|
+| **50** | Si hay PSE | String numérico | Código de servicio PSE. ZonaPagos lo asigna a tu comercio. |
+| **100** | Opcional | `"1"` o `"2"` | Permite dividir pago en varios medios. `1` = sí, `2` = no. Default: `0` (no dividir). |
+| **101** | Opcional | `"1"` o `"0"` | Permite dividir en varias TC. Aplica solo si `100: "1"`. |
+| **102** | Opcional | `"1"` o `"0"` | Permite dividir en varios PSE. Aplica solo si `100: "1"`. |
+| **103** | Opcional | `"1"` o `"0"` | Desactivar PSE. `1` = desactivar. |
+| **104** | Opcional | URL completa | URL de retorno del cliente. Sobrescribe la config estática del comercio. |
+| **105** | Opcional | Entero | Valor mínimo por fracción (si hay división). |
+| **106** | Opcional | Entero | Número máximo de fracciones. |
+| **107** | Opcional | `"1"` o `"0"` | Desactivar TC. `1` = desactivar. |
+| **108** | Opcional | `"1"` o `"0"` | Activa por defecto el checkbox de términos y condiciones. |
+| **109** | Opcional | `"1"` o `"0"` | Habilita pagos mixtos. |
+| **110** | Opcional | `"1"` o `"0"` | Pago total del saldo si se hace por PSE. |
+| **111** | Opcional | `"1"` o `"0"` | Oculta campo "nombre en tarjeta" al pagar con TC. |
+| **112** | Opcional | Entero | Valor mixto a pagar por defecto (monto de la primera fracción). |
+| **113** | Opcional | `"1"` o `"0"` | Habilita pagos recurrentes. |
+| **114** | Opcional | Entero (meses) | Plazo total de la recurrencia. |
+| **115** | Opcional | Entero (meses) | Frecuencia del cobro recurrente. |
+| **116** | Opcional | `"1"` o `"0"` | Habilita cobro en dólares para TC. |
+| **117** | Opcional | `"CO"` o `"US"` | Moneda: `CO` = pesos, `US` = dólares. |
+
+<Warning>
+**Inconsistencia en el código 100:** la documentación oficial indica valores `1` o `2`, pero también menciona que "si no se envía se toma 0". El comportamiento con `0` no está documentado. **Recomendación:** si no quieres dividir pago, omite el código; si quieres dividirlo, envía `"1"`.
+</Warning>
+
+### Cobro por transacción — PSE
+
+| Código | Valor | Descripción |
+|--------|-------|-------------|
+| **500** | `"1"` o `"0"` | Habilita cobro por transacción PSE. |
+| **50001** | `"1"` o `"0"` | Tipo de cobro: `1` = porcentaje, `0` = valor fijo. |
+| **50002** | String 4 dígitos | Porcentaje (formato propietario). Ver abajo. |
+| **50003** | Entero | Monto mínimo para aplicar cobro porcentual. |
+| **50004** | Entero | Monto máximo para aplicar cobro porcentual. |
+| **50005** | Entero | Valor fijo por transacción (ej. `"1200"` = $1.200). |
+| **50006** | Entero | Monto máximo del valor fijo. |
+| **50007** | Entero | IVA de la transacción (informativo). |
+| **50008** | `"1"` o `"0"` | Aproximación del porcentaje: `1` = hacia arriba, `0` = hacia abajo. |
+
+### Cobro por transacción — TC
+
+| Código | Valor | Descripción |
+|--------|-------|-------------|
+| **501** | `"1"` o `"0"` | Habilita cobro por transacción TC. |
+| **50101** | `"1"` o `"0"` | Tipo de cobro: `1` = porcentaje, `0` = valor fijo. |
+| **50102** | String 4 dígitos | Porcentaje. |
+| **50103** | Entero | Monto mínimo. |
+| **50104** | Entero | Monto máximo. |
+| **50105** | Entero | Valor fijo. |
+| **50106** | Entero | Máximo fijo. |
+| **50107** | Entero | IVA (informativo). |
+| **50108** | `"1"` o `"0"` | Aproximación. |
+
+## Formato de porcentaje (códigos 50002 y 50102)
+
+<Warning>
+Este formato es **propietario** y propenso a errores. Léelo dos veces.
+</Warning>
+
+El campo acepta un **string de 4 dígitos** donde los dos últimos son los decimales:
+
+| String | Representa |
+|--------|-----------|
+| `"0050"` | 0.50% |
+| `"0100"` | 1.00% |
+| `"0195"` | 1.95% |
+| `"0200"` | 2.00% |
+| `"0250"` | 2.50% |
+| `"1000"` | 10.00% |
+| `"1500"` | 15.00% |
+| `"2500"` | 25.00% |
+
+### Excepción documentada
+
+Para valores **menores a 1%**, la doc oficial menciona una convención alternativa con 2 dígitos:
+
+- `"02"` = 2%
+- `"09"` = 9%
+- `"10"`, `"15"`, `"25"` para 10%, 15%, 25%
+
+<Warning>
+**Esta ambigüedad existe en el instructivo oficial v6.0.** Hay dos convenciones superpuestas:
+- 2 dígitos: `"02"` = 2%
+- 4 dígitos: `"0195"` = 1.95%
+
+Para evitar errores, **usa siempre 4 dígitos con padding de ceros**: `"0200"` = 2%, `"0900"` = 9%, `"1000"` = 10%. _[Pendiente de validación con TI.]_
+</Warning>
+
+## Ejemplos
+
+### Mínimo viable (solo PSE)
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50, "str_valor": "2701" }
+]
+```
+
+### PSE + TC con URL de retorno custom
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,  "str_valor": "2701" },
+  { "int_codigo": 104, "str_valor": "https://micomercio.com/retorno" }
+]
+```
+
+### Pagos mixtos habilitados, máximo 3 fracciones, mínimo $10.000
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,  "str_valor": "2701" },
+  { "int_codigo": 100, "str_valor": "1" },
+  { "int_codigo": 109, "str_valor": "1" },
+  { "int_codigo": 105, "str_valor": "10000" },
+  { "int_codigo": 106, "str_valor": "3" }
+]
+```
+
+### Cobro por transacción PSE del 1.95%, aproximando hacia arriba
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,    "str_valor": "2701" },
+  { "int_codigo": 500,   "str_valor": "1" },
+  { "int_codigo": 50001, "str_valor": "1" },
+  { "int_codigo": 50002, "str_valor": "0195" },
+  { "int_codigo": 50008, "str_valor": "1" }
+]
+```
+
+### Pagos recurrentes TC: 12 meses, cobro mensual
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,  "str_valor": "2701" },
+  { "int_codigo": 113, "str_valor": "1" },
+  { "int_codigo": 114, "str_valor": "12" },
+  { "int_codigo": 115, "str_valor": "1" }
+]
+```
+
+### Cobro en dólares para TC
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,  "str_valor": "2701" },
+  { "int_codigo": 116, "str_valor": "1" },
+  { "int_codigo": 117, "str_valor": "US" }
+]
+```
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Cobro por transacción" icon="percent" href="/docs/zonapay/api/referencia/cobro-transaccion">
+    Detalle de los fees y cómo se calculan.
+  </Card>
+  <Card title="Casos de uso" icon="book" href="/docs/zonapay/guias/pse-simple">
+    Ejemplos de integración por escenario.
+  </Card>
+</CardGroup>

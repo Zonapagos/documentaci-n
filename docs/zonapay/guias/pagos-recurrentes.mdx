@@ -1,0 +1,83 @@
+---
+title: "Pagos recurrentes"
+description: "Configurar cobros periódicos programados con tarjeta de crédito."
+---
+
+## Escenario
+
+Suscripciones, membresías, servicios por pago mensual. El usuario autoriza una vez y ZonaPagos cobra periódicamente.
+
+<Warning>
+Los pagos recurrentes aplican típicamente a **tarjeta de crédito**. La disponibilidad depende de tu configuración comercial y del acuerdo con la franquicia. Coordina con tu gerente de cuenta antes de implementar.
+</Warning>
+
+## Códigos de configuración
+
+<ParamField path="int_codigo: 113" type="string" required>
+Habilita recurrencias. `"1"` = habilitado.
+</ParamField>
+
+<ParamField path="int_codigo: 114" type="string" required>
+**Plazo total** de la recurrencia en **meses**. Ej: `"12"` = 12 meses.
+</ParamField>
+
+<ParamField path="int_codigo: 115" type="string" required>
+**Frecuencia** del cobro en **meses**. Ej: `"1"` = cada mes, `"3"` = trimestral.
+</ParamField>
+
+## Ejemplo: suscripción mensual por 12 meses
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,  "str_valor": "2701" },
+  { "int_codigo": 113, "str_valor": "1" },
+  { "int_codigo": 114, "str_valor": "12" },
+  { "int_codigo": 115, "str_valor": "1" }
+]
+```
+
+Resultado: el usuario autoriza el primer cobro en el ciclo de pago; ZonaPagos programa 11 cobros adicionales (uno por mes) hasta completar 12.
+
+## Ejemplo: trimestral por 2 años
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,  "str_valor": "2701" },
+  { "int_codigo": 113, "str_valor": "1" },
+  { "int_codigo": 114, "str_valor": "24" },
+  { "int_codigo": 115, "str_valor": "3" }
+]
+```
+
+Resultado: 8 cobros trimestrales a lo largo de 24 meses.
+
+## Consideraciones
+
+<Warning>
+**Tu comercio no inicia cada cobro recurrente.** ZonaPagos lo hace automáticamente según la programación. Tu backend recibe una notificación / callback por cada cobro ejecutado.
+
+_[Pendiente con TI: documentar formalmente el flujo de notificación para cobros recurrentes — el PDF v6.0 no lo detalla.]_
+</Warning>
+
+<Check>
+**Cumplimiento legal:** en Colombia, los cobros recurrentes deben ser claramente comunicados al usuario. Asegúrate que tu checkout muestre el plazo total y la frecuencia antes de que autorice.
+</Check>
+
+<Check>
+**Cancelación:** el usuario debe poder cancelar su suscripción. Expón un endpoint de cancelación y notifica a ZonaPagos. Los detalles operativos los coordina tu área comercial.
+</Check>
+
+<Warning>
+**Si la tarjeta expira o es cancelada** durante el ciclo de vida de la recurrencia, los cobros subsecuentes fallarán. Maneja ese caso avisando al usuario vía email para que actualice el medio de pago.
+</Warning>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Contacto" icon="envelope" href="/docs/empieza-ahora/glosario-tecnico">
+    Coordina recurrencias con tu gerente comercial antes de producción.
+  </Card>
+  <Card title="AdicionalesConfiguracion" icon="sliders" href="/docs/zonapay/api/referencia/adicionales-configuracion">
+    Catálogo completo.
+  </Card>
+</CardGroup>

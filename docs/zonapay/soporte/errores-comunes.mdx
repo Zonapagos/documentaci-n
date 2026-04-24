@@ -1,0 +1,94 @@
+---
+title: "Errores comunes"
+description: "Tabla de diagnóstico para los errores más frecuentes al integrar."
+---
+
+## Errores al llamar /InicioPago
+
+| Síntoma | Causa probable | Solución |
+|---------|---------------|----------|
+| HTTP 404 | URL mal escrita | Verifica que sea `Apis_CicloPago/api/InicioPago` (no `dummie_ciclopago`). |
+| HTTP 415 | Falta header `Content-Type` | Añadir `Content-Type: application/json`. |
+| HTTP 400 | JSON malformado | Validar con un JSON linter antes de enviar. |
+| HTTP 500/502/503 | Error del servidor | Reintentar con backoff. Si persiste, contactar soporte. |
+| Timeout | Red saturada o servidor lento | Timeout recomendado: 30s. Reintentar si procede. |
+| `int_codigo: 2` + "Object reference..." | Credenciales inválidas, campo faltante, o comercio inexistente | Revisar credenciales y estructura del body. |
+| `int_codigo: 2` sin descripción útil | Falta un campo obligatorio | Revisar `InformacionPago.flt_total_con_iva`, `str_id_pago`, `str_descripcion_pago`. |
+| "Código 50 requerido" | Tu comercio tiene PSE pero no enviaste `AdicionalesConfiguracion` con código 50 | Incluir `{ "int_codigo": 50, "str_valor": "tu_codigo_servicio" }`. |
+| str_id_pago rechazado | Tiene ceros a la izquierda o supera 30 caracteres | Usar un ID sin ceros iniciales, máximo 30 chars. |
+| Duplicate key / ID ya usado | Reutilizaste un `str_id_pago` | Generar un ID único por pago. |
+
+## Errores al llamar /VerificacionPago
+
+| Síntoma | Causa probable | Solución |
+|---------|---------------|----------|
+| `int_estado: 2`, `str_detalle: "Credenciales inválidas"` | Usuario/clave mal | Revisar env vars. |
+| `int_cantidad_pagos: 0` cuando esperabas pagos | El usuario no inició el ciclo de pago, o estás consultando un ID que nunca creaste | Verificar `str_id_pago` exacto. |
+| `str_res_pago` vacío a pesar de `int_cantidad_pagos > 0` | Bug raro del API | Contactar soporte. |
+| Campo `str_pwd_Comercio` rechazado | Lo escribiste con minúscula (`str_pwd_comercio`) | Debe ser `str_pwd_Comercio` con **C mayúscula**. |
+
+## Errores durante la sonda
+
+| Síntoma | Causa probable | Solución |
+|---------|---------------|----------|
+| Dos sondas corriendo en paralelo | Falta lock distribuido | Implementar lock con Redis/DB. |
+| Sonda consume 100% CPU | Query SQL no filtra pagos cerrados | Revisar `WHERE estado_local = 'pendiente'`. |
+| Pagos que nunca cambian de `999` | Usuario abandonó tras autorizar PSE | Marcar como abandonado tras 48h. |
+| Sonda falla silenciosamente | Excepción no manejada | Envolver cada iteración en try/catch. |
+| Notificaciones duplicadas al usuario | Sonda no marca pagos como "notificado" | Añadir flag `notificado` en BD. |
+
+## Errores en el callback
+
+| Síntoma | Causa probable | Solución |
+|---------|---------------|----------|
+| No recibes callback | URL de retorno mal configurada en el comercio | Verificar config o enviar código `104` dinámicamente. |
+| Callback llega al dominio equivocado | Dev y prod comparten config | Usar código `104` con URL según ambiente. |
+| Recibes callback sin `id_pago` | El formulario fue interrumpido | Manejar este caso sin crashear. |
+| Callback duplicado | Usuario recarga la página | Implementar idempotencia. |
+
+## Errores al parsear str_res_pago
+
+| Síntoma | Causa probable | Solución |
+|---------|---------------|----------|
+| Array vacío cuando sí hay pagos | `str_res_pago` es `null` o string vacío | Verificar en `int_cantidad_pagos` primero. |
+| Campos shifted (datos en posiciones incorrectas) | Un valor opcional tiene un pipe `|` interno | No enviar pipes en `str_opcional1-5`. |
+| Campo `int_id_forma_pago` vacío | Pago aún no ha sido procesado por ningún medio | Normal si estado es `888`. |
+| Campos extras faltantes para medio 29 o 32 | Parser no considera el medio | Revisar el mapa `EXTRAS_POR_MEDIO`. |
+
+## Errores de producción
+
+| Síntoma | Causa probable | Solución |
+|---------|---------------|----------|
+| Pagos aprobados que no se reflejan en mi BD | Callback no llega o es ignorado | Verificar logs del endpoint de retorno. La sonda debería resolverlo. |
+| Pedidos duplicados en producción | Falla de idempotencia en callback | Revisar [Idempotencia](/docs/zonapay/guias/idempotencia). |
+| Clientes reclaman que pagaron pero no recibieron producto | Falla en la sonda o en lógica de entrega | Consultar `/VerificacionPago` manualmente con el `str_id_pago` reportado. |
+| Tasa de rechazo súbitamente alta | Problema con la red de pagos, no contigo | Contactar soporte ZonaPagos para confirmar. |
+
+## Cuándo contactar soporte
+
+Contacta a [soporte@zonapagos.com](mailto:soporte@zonapagos.com) cuando:
+
+- Un pago específico tiene comportamiento anómalo y ya verificaste tu código.
+- Recibes errores que no aparecen en estas tablas.
+- La tasa de errores sube sin cambios en tu código.
+- Necesitas credenciales de preproducción.
+- Necesitas certificación PSE.
+
+**Incluye siempre en el email:**
+
+- Tu `int_id_comercio`.
+- `str_id_pago` del caso específico.
+- Timestamp del intento (hora Colombia).
+- Request y response completos (ocultando `str_clave`).
+- Logs de tu lado si los tienes.
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="FAQ" icon="circle-question" href="/docs/zonapay/soporte/faq">
+    Preguntas más frecuentes.
+  </Card>
+  <Card title="Manejo de errores" icon="triangle-exclamation" href="/docs/zonapay/guias/manejo-errores">
+    Estrategia general.
+  </Card>
+</CardGroup>

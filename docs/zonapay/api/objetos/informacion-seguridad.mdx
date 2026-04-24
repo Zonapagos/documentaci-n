@@ -1,0 +1,64 @@
+---
+title: "InformacionSeguridad"
+description: "Credenciales del comercio para autenticar un request de InicioPago."
+---
+
+Objeto que se envía en el cuerpo de [`/InicioPago`](/docs/zonapay/api/endpoints/inicio-pago) con las credenciales del comercio.
+
+<Note>
+`/VerificacionPago` usa los mismos datos pero con nombres diferentes y en el nivel raíz del body. Ver [Autenticación](/docs/zonapay/api/autenticacion).
+</Note>
+
+## Campos
+
+<ParamField path="int_id_comercio" type="integer" required>
+Identificador único del comercio. Suministrado por ZonaPagos al activar tu cuenta.
+
+**Ejemplo:** `678`, `31416`
+</ParamField>
+
+<ParamField path="str_usuario" type="string" required>
+Usuario técnico de integración. Máximo 40 caracteres.
+
+<Warning>
+En `/VerificacionPago` este mismo valor se llama `str_usr_comercio`.
+</Warning>
+</ParamField>
+
+<ParamField path="str_clave" type="string" required>
+Clave de integración. Máximo 50 caracteres.
+
+<Warning>
+En `/VerificacionPago` este mismo valor se llama `str_pwd_Comercio` (con C mayúscula).
+</Warning>
+</ParamField>
+
+<ParamField path="int_modalidad" type="integer" required>
+Valor fijo.
+
+<Warning>
+**Contradicción en la documentación oficial v6.0:**
+- El texto normativo indica que debe ser **siempre `-1`**.
+- El ejemplo JSON oficial (sección 7.4.1) envía `1`.
+
+Esta documentación recomienda `-1` siguiendo el texto. _[Pendiente de confirmación con TI.]_
+</Warning>
+</ParamField>
+
+## Ejemplo
+
+```json
+{
+  "int_id_comercio": 678,
+  "str_usuario": "Usuario",
+  "str_clave": "ClaveSecreta",
+  "int_modalidad": -1
+}
+```
+
+## Manejo de credenciales
+
+<Check>Guárdalas en secret manager / variables de entorno cifradas. Nunca en código.</Check>
+<Check>Rota la clave periódicamente desde el portal.</Check>
+<Check>No loguees la clave en archivos de log.</Check>
+<Check>Usa HTTPS siempre (el API solo acepta TLS).</Check>

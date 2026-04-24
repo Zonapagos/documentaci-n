@@ -1,0 +1,51 @@
+---
+title: "AdicionalConfiguracion"
+description: "Objeto individual dentro del array AdicionalesConfiguracion."
+---
+
+Cada elemento del array `AdicionalesConfiguracion` en el body de `/InicioPago` tiene esta forma.
+
+## Estructura
+
+```json
+{ "int_codigo": 50, "str_valor": "2701" }
+```
+
+## Campos
+
+<ParamField path="int_codigo" type="integer" required>
+Código de la configuración. Ver [catálogo completo](/docs/zonapay/api/referencia/adicionales-configuracion).
+
+Máximo 7 dígitos.
+</ParamField>
+
+<ParamField path="str_valor" type="string" required>
+Valor de la configuración. El formato depende del código. Siempre se envía como string.
+</ParamField>
+
+## Códigos más usados
+
+| Código | Cuándo usarlo |
+|--------|---------------|
+| `50` | **Obligatorio si aceptas PSE.** Tu código de servicio PSE. |
+| `100` | Para habilitar división del pago en varios medios. |
+| `104` | Para especificar URL de retorno dinámica por pago. |
+| `109` | Para habilitar pagos mixtos. |
+| `113` | Para pagos recurrentes. |
+
+## Ejemplo de array
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,  "str_valor": "2701" },
+  { "int_codigo": 100, "str_valor": "1" },
+  { "int_codigo": 109, "str_valor": "1" },
+  { "int_codigo": 104, "str_valor": "https://micomercio.com/retorno" }
+]
+```
+
+## Ver también
+
+<Card title="Catálogo completo" icon="list" href="/docs/zonapay/api/referencia/adicionales-configuracion">
+  Todos los códigos con descripción.
+</Card>

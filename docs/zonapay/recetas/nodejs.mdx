@@ -1,0 +1,233 @@
+---
+title: "Node.js"
+description: "Cliente completo con axios, manejo de errores y parser de str_res_pago."
+---
+
+## Dependencias
+
+```bash
+npm install axios
+```
+
+## Cliente completo
+
+Guarda como `zonapagos.js`:
+
+```javascript
+// zonapagos.js
+import axios from "axios";
+
+const ZP_API_URL = process.env.ZP_API_URL || "https://www.zonapagos.com/Apis_CicloPago/api";
+
+const client = axios.create({
+  baseURL: ZP_API_URL,
+  timeout: 30000,
+  headers: { "Content-Type": "application/json" }
+});
+
+// ═══════════════════════════════════════════
+// InicioPago
+// ═══════════════════════════════════════════
+
+export async function iniciarPago({
+  idPago, monto, iva, descripcion,
+  cliente, opciones = {}
+}) {
+  const body = {
+    InformacionPago: {
+      flt_total_con_iva: monto,
+      flt_valor_iva: iva,
+      str_id_pago: idPago,
+      str_descripcion_pago: descripcion,
+      str_email: cliente.email,
+      str_id_cliente: cliente.documento,
+      str_tipo_id: cliente.tipoId || "1",
+      str_nombre_cliente: cliente.nombre,
+      str_apellido_cliente: cliente.apellido,
+      str_telefono_cliente: cliente.telefono,
+      ...(opciones.opcionales || {})
+    },
+    InformacionSeguridad: {
+      int_id_comercio: Number(process.env.ZP_ID_COMERCIO),
+      str_usuario: process.env.ZP_USUARIO,
+      str_clave: process.env.ZP_CLAVE,
+      int_modalidad: -1
+    },
+    AdicionalesPago: opciones.adicionalesPago || [],
+    AdicionalesConfiguracion: [
+      { int_codigo: 50, str_valor: process.env.ZP_COD_SERVICIO },
+      ...(opciones.configuracion || [])
+    ]
+  };
+
+  const { data } = await client.post("/InicioPago", body);
+
+  if (data.int_codigo !== 1) {
+    const err = new Error(data.str_descripcion_error || "Error desconocido");
+    err.code = "ZP_ERROR";
+    err.int_codigo = data.int_codigo;
+    throw err;
+  }
+
+  return { url: data.str_url };
+}
+
+// ═══════════════════════════════════════════
+// VerificacionPago + parser
+// ═══════════════════════════════════════════
+
+export async function verificarPago(idPago, noPago = -1) {
+  const { data } = await client.post("/VerificacionPago", {
+    int_id_comercio: Number(process.env.ZP_ID_COMERCIO),
+    str_usr_comercio: process.env.ZP_USUARIO,
+    str_pwd_Comercio: process.env.ZP_CLAVE,
+    str_id_pago: idPago,
+    int_no_pago: noPago
+  });
+
+  if (data.int_estado !== 1) {
+    throw new Error(`API error: ${data.str_detalle}`);
+  }
+
+  return {
+    cantidadPagos: data.int_cantidad_pagos,
+    pagos: parseStrResPago(data.str_res_pago)
+  };
+}
+
+// ═══════════════════════════════════════════
+// Parser
+// ═══════════════════════════════════════════
+
+const CAMPOS_BASE = [
+  "int_ped_numero", "int_n_pago", "int_pago_parcial",
+  "int_pago_terminado", "int_estado_pago",
+  "dbl_valor_pagado", "dbl_total_pago", "dbl_valor_iva_pagado",
+  "str_descripcion", "str_id_cliente",
+  "str_nombre", "str_apellido", "str_telefono", "str_email",
+  "str_campo1", "str_campo2", "str_campo3", "str_campo4", "str_campo5",
+  "dat_fecha", "int_id_forma_pago"
+];
+
+const EXTRAS_POR_MEDIO = {
+  "29": ["str_ticketID", "int_codigo_servicio", "int_codigo_banco",
+         "str_nombre_banco", "str_codigo_transaccion", "int_ciclo_transaccion"],
+  "32": ["str_ticketID", "int_numero_tarjeta", "str_franquicia",
+         "int_cod_aprobacion", "int_num_recibido"],
+  "47": ["str_ticketID", "int_codigo_banco"],
+  "48": ["str_ticketID"],
+  "51": ["str_ticketID", "int_numero_tarjeta", "str_franquicia",
+         "int_cod_aprobacion", "int_num_recibido"]
+};
+
+export function parseStrResPago(raw) {
+  if (!raw || typeof raw !== "string" || raw.trim() === "") return [];
+
+  return raw
+    .split("|;|")
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(pagoRaw => {
+      const partes = pagoRaw.split("|").map(x => x.trim());
+      const pago = {};
+
+      CAMPOS_BASE.forEach((campo, i) => {
+        pago[campo] = partes[i] !== undefined ? partes[i] : "";
+      });
+
+      const medio = pago.int_id_forma_pago;
+      const extras = EXTRAS_POR_MEDIO[medio] || [];
+      extras.forEach((campo, i) => {
+        pago[campo] = partes[CAMPOS_BASE.length + i] !== undefined 
+          ? partes[CAMPOS_BASE.length + i] : "";
+      });
+
+      return pago;
+    });
+}
+
+// ═══════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════
+
+export const ESTADOS = {
+  APROBADO: 1,
+  NO_INICIADO: 888,
+  PENDIENTE_FINALIZAR: 999,
+  RECHAZADO: 1000,
+  ERROR_ACH: 1001,
+  RECHAZADO_CR: 4000,
+  PENDIENTE_CR: 4001,
+  ERROR_CR: 4003
+};
+
+export function esAprobado(estadoPago) {
+  return Number(estadoPago) === ESTADOS.APROBADO;
+}
+
+export function esPendiente(estadoPago) {
+  return [ESTADOS.NO_INICIADO, ESTADOS.PENDIENTE_FINALIZAR, ESTADOS.PENDIENTE_CR]
+    .includes(Number(estadoPago));
+}
+
+export function esRechazado(estadoPago) {
+  return [ESTADOS.RECHAZADO, ESTADOS.ERROR_ACH, ESTADOS.RECHAZADO_CR, ESTADOS.ERROR_CR]
+    .includes(Number(estadoPago));
+}
+```
+
+## Uso en Express
+
+```javascript
+// app.js
+import express from "express";
+import { iniciarPago, verificarPago, esAprobado } from "./zonapagos.js";
+
+const app = express();
+app.use(express.json());
+
+app.post("/checkout", async (req, res) => {
+  try {
+    const { url } = await iniciarPago({
+      idPago: `ORDEN-${Date.now()}`,
+      monto: req.body.monto,
+      iva: req.body.iva,
+      descripcion: req.body.descripcion,
+      cliente: req.body.cliente,
+      opciones: {
+        configuracion: [
+          { int_codigo: 104, str_valor: `${process.env.APP_URL}/retorno` }
+        ]
+      }
+    });
+    res.redirect(url);
+  } catch (err) {
+    console.error(err);
+    res.status(500).render("error");
+  }
+});
+
+app.get("/retorno", async (req, res) => {
+  const { id_pago } = req.query;
+  const { pagos } = await verificarPago(id_pago);
+  const ultimo = pagos[pagos.length - 1];
+  
+  if (esAprobado(ultimo.int_estado_pago)) {
+    return res.redirect(`/gracias?id=${id_pago}`);
+  }
+  return res.redirect(`/pendiente?id=${id_pago}`);
+});
+
+app.listen(3000);
+```
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Implementar sonda" icon="satellite-dish" href="/docs/zonapay/guias/implementar-sonda">
+    El cron job completo en Node.
+  </Card>
+  <Card title="Python" icon="python" href="/docs/zonapay/recetas/python">
+    Equivalente en Python.
+  </Card>
+</CardGroup>

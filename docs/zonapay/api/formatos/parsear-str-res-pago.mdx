@@ -1,0 +1,378 @@
+---
+title: "Parsear str_res_pago"
+description: "Cómo convertir el texto plano de VerificacionPago en objetos manipulables."
+---
+
+El response de `POST /VerificacionPago` contiene un campo `str_res_pago` con los detalles de las transacciones en un formato **propietario de texto plano**:
+
+```
+campo1|campo2|...|campoN|;|campo1|campo2|...|campoN|;|
+```
+
+## Reglas del formato
+
+<Check>**Separador de campos:** pipe simple `|`</Check>
+<Check>**Separador de pagos:** pipe-punto-y-coma-pipe `|;|`</Check>
+<Check>**Orden fijo:** los primeros 21 campos son comunes a todos los medios de pago.</Check>
+<Check>**Campos adicionales:** a partir del 22, dependen de `int_id_forma_pago` (ver [Campos por medio](/docs/zonapay/api/formatos/campos-por-medio-pago)).</Check>
+<Check>**Trailing `|;|`:** el string suele terminar con `|;|` — ignóralo al dividir.</Check>
+
+## Orden fijo de los 21 campos base
+
+| # | Campo | Tipo | Descripción |
+|---|-------|------|-------------|
+| 1 | `int_ped_numero` | int | Número de pedido generado por ZonaPagos. |
+| 2 | `int_n_pago` | int | Número de transacción del pago. Puede repetirse si es pago mixto. |
+| 3 | `int_pago_parcial` | int | `1` si el pago es parcial (mixto). |
+| 4 | `int_pago_terminado` | int | `200` iniciado, `1` terminado, `2` pendiente (mixto incompleto). |
+| 5 | `int_estado_pago` | int | Estado final. [Ver tabla](/docs/zonapay/api/referencia/estados-pago). |
+| 6 | `dbl_valor_pagado` | decimal | Valor pagado en esta transacción. |
+| 7 | `dbl_total_pago` | decimal | Total que envió el comercio. |
+| 8 | `dbl_valor_iva_pagado` | decimal | IVA pagado. |
+| 9 | `str_descripcion` | string | Concepto del pago (lo que enviaste en `str_descripcion_pago`). |
+| 10 | `str_id_cliente` | string | ID del cliente. |
+| 11 | `str_nombre` | string | Nombre del pagador. |
+| 12 | `str_apellido` | string | Apellido del pagador. |
+| 13 | `str_telefono` | string | Teléfono. |
+| 14 | `str_email` | string | Email. |
+| 15 | `str_campo1` | string | Tu `str_opcional1`. |
+| 16 | `str_campo2` | string | Tu `str_opcional2`. |
+| 17 | `str_campo3` | string | Tu `str_opcional3`. |
+| 18 | `str_campo4` | string | Tu `str_opcional4`. |
+| 19 | `str_campo5` | string | Tu `str_opcional5`. |
+| 20 | `dat_fecha` | string | Fecha/hora `dd/mm/yyyy hh:mm`. |
+| 21 | `int_id_forma_pago` | int | Código del medio: `29`, `32`, `41`, `47`, `48`, `51`, `77`. |
+
+Los campos 22+ dependen del medio. Ver [Campos por medio de pago](/docs/zonapay/api/formatos/campos-por-medio-pago).
+
+## Ejemplo de string real
+
+```
+31|3773|1|1|1|12500|12500|0|camisa|123456789|Cristina|Vargas|3001234567|c@ejemplo.com|opcion1|opcion2|opcion3|||21/04/2026 12:58:41|29|18092100031|2701|1022|BANCO UNION COLOMBIANO|1468228|3|;|
+```
+
+Descompuesto:
+- Pedido `31`, intento `3773`
+- Pago parcial: `1`, terminado: `1`, estado: **`1`** ✅
+- Valor: `12500`, total: `12500`, IVA: `0`
+- Descripción: "camisa", cliente "Cristina Vargas"
+- Medio: `29` (PSE), banco: `BANCO UNION COLOMBIANO` (código 1022)
+- CUS (`str_codigo_transaccion`): `1468228`
+
+## Parsers listos para copiar
+
+<CodeGroup>
+
+```javascript JavaScript / Node.js
+/**
+ * Parsea el campo str_res_pago de VerificacionPago.
+ * @param {string} raw - El valor del campo str_res_pago.
+ * @returns {Array<Object>} Array de pagos con todos sus campos.
+ */
+export function parseStrResPago(raw) {
+  if (!raw || typeof raw !== "string" || raw.trim() === "") return [];
+
+  const CAMPOS_BASE = [
+    "int_ped_numero", "int_n_pago", "int_pago_parcial",
+    "int_pago_terminado", "int_estado_pago",
+    "dbl_valor_pagado", "dbl_total_pago", "dbl_valor_iva_pagado",
+    "str_descripcion", "str_id_cliente",
+    "str_nombre", "str_apellido", "str_telefono", "str_email",
+    "str_campo1", "str_campo2", "str_campo3", "str_campo4", "str_campo5",
+    "dat_fecha", "int_id_forma_pago"
+  ];
+
+  const EXTRAS_POR_MEDIO = {
+    "29": ["str_ticketID", "int_codigo_servicio", "int_codigo_banco",
+           "str_nombre_banco", "str_codigo_transaccion", "int_ciclo_transaccion"],
+    "32": ["str_ticketID", "int_numero_tarjeta", "str_franquicia",
+           "int_cod_aprobacion", "int_num_recibido"],
+    "47": ["str_ticketID", "int_codigo_banco"],
+    "48": ["str_ticketID"],
+    "51": ["str_ticketID", "int_numero_tarjeta", "str_franquicia",
+           "int_cod_aprobacion", "int_num_recibido"],
+    "77": [],
+    "41": []
+  };
+
+  return raw
+    .split("|;|")
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(pagoRaw => {
+      const partes = pagoRaw.split("|").map(x => x.trim());
+      const pago = {};
+
+      CAMPOS_BASE.forEach((campo, i) => {
+        pago[campo] = partes[i] !== undefined ? partes[i] : "";
+      });
+
+      // Campos adicionales según medio de pago
+      const medio = pago.int_id_forma_pago;
+      const extras = EXTRAS_POR_MEDIO[medio] || [];
+      extras.forEach((campo, i) => {
+        const idx = CAMPOS_BASE.length + i;
+        pago[campo] = partes[idx] !== undefined ? partes[idx] : "";
+      });
+
+      // Conversión de tipos para campos numéricos
+      ["int_ped_numero", "int_n_pago", "int_pago_parcial",
+       "int_pago_terminado", "int_estado_pago", "int_id_forma_pago",
+       "dbl_valor_pagado", "dbl_total_pago", "dbl_valor_iva_pagado"
+      ].forEach(k => {
+        if (pago[k] !== undefined && pago[k] !== "") {
+          const n = Number(pago[k]);
+          if (!isNaN(n)) pago[k] = n;
+        }
+      });
+
+      return pago;
+    });
+}
+
+// ─────────────────────────────────────────
+// Uso
+// ─────────────────────────────────────────
+const response = await axios.post(`${API_URL}/VerificacionPago`, body);
+const pagos = parseStrResPago(response.data.str_res_pago);
+
+pagos.forEach(p => {
+  console.log(`Pago ${p.int_n_pago}: estado ${p.int_estado_pago}`);
+  if (p.int_estado_pago === 1) console.log("✅ Aprobado");
+});
+```
+
+```python Python
+from typing import List, Dict, Any
+
+CAMPOS_BASE = [
+    "int_ped_numero", "int_n_pago", "int_pago_parcial",
+    "int_pago_terminado", "int_estado_pago",
+    "dbl_valor_pagado", "dbl_total_pago", "dbl_valor_iva_pagado",
+    "str_descripcion", "str_id_cliente",
+    "str_nombre", "str_apellido", "str_telefono", "str_email",
+    "str_campo1", "str_campo2", "str_campo3", "str_campo4", "str_campo5",
+    "dat_fecha", "int_id_forma_pago",
+]
+
+EXTRAS_POR_MEDIO = {
+    "29": ["str_ticketID", "int_codigo_servicio", "int_codigo_banco",
+           "str_nombre_banco", "str_codigo_transaccion", "int_ciclo_transaccion"],
+    "32": ["str_ticketID", "int_numero_tarjeta", "str_franquicia",
+           "int_cod_aprobacion", "int_num_recibido"],
+    "47": ["str_ticketID", "int_codigo_banco"],
+    "48": ["str_ticketID"],
+    "51": ["str_ticketID", "int_numero_tarjeta", "str_franquicia",
+           "int_cod_aprobacion", "int_num_recibido"],
+    "77": [],
+    "41": [],
+}
+
+CAMPOS_NUMERICOS = {
+    "int_ped_numero", "int_n_pago", "int_pago_parcial",
+    "int_pago_terminado", "int_estado_pago", "int_id_forma_pago",
+    "dbl_valor_pagado", "dbl_total_pago", "dbl_valor_iva_pagado",
+}
+
+
+def parse_str_res_pago(raw: str) -> List[Dict[str, Any]]:
+    """Parsea el campo str_res_pago de VerificacionPago."""
+    if not raw or not isinstance(raw, str) or raw.strip() == "":
+        return []
+
+    pagos = []
+    for pago_raw in (p.strip() for p in raw.split("|;|")):
+        if not pago_raw:
+            continue
+        partes = [x.strip() for x in pago_raw.split("|")]
+        pago: Dict[str, Any] = {}
+
+        for i, campo in enumerate(CAMPOS_BASE):
+            pago[campo] = partes[i] if i < len(partes) else ""
+
+        medio = str(pago.get("int_id_forma_pago", ""))
+        extras = EXTRAS_POR_MEDIO.get(medio, [])
+        for i, campo in enumerate(extras):
+            idx = len(CAMPOS_BASE) + i
+            pago[campo] = partes[idx] if idx < len(partes) else ""
+
+        # Conversión de tipos
+        for k in list(pago.keys()):
+            if k in CAMPOS_NUMERICOS and pago[k] not in ("", None):
+                try:
+                    pago[k] = float(pago[k]) if k.startswith("dbl_") else int(pago[k])
+                except ValueError:
+                    pass
+
+        pagos.append(pago)
+    return pagos
+
+
+# ─────────────────────────────────────────
+# Uso
+# ─────────────────────────────────────────
+if __name__ == "__main__":
+    import requests
+    r = requests.post(f"{API_URL}/VerificacionPago", json=body).json()
+    for p in parse_str_res_pago(r["str_res_pago"]):
+        print(f"Pago {p['int_n_pago']}: estado {p['int_estado_pago']}")
+```
+
+```csharp C# (.NET)
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+
+public static class StrResPagoParser
+{
+    private static readonly string[] CAMPOS_BASE = new[]
+    {
+        "int_ped_numero", "int_n_pago", "int_pago_parcial",
+        "int_pago_terminado", "int_estado_pago",
+        "dbl_valor_pagado", "dbl_total_pago", "dbl_valor_iva_pagado",
+        "str_descripcion", "str_id_cliente",
+        "str_nombre", "str_apellido", "str_telefono", "str_email",
+        "str_campo1", "str_campo2", "str_campo3", "str_campo4", "str_campo5",
+        "dat_fecha", "int_id_forma_pago"
+    };
+
+    private static readonly Dictionary<string, string[]> EXTRAS_POR_MEDIO = new()
+    {
+        ["29"] = new[] { "str_ticketID", "int_codigo_servicio", "int_codigo_banco",
+                         "str_nombre_banco", "str_codigo_transaccion", "int_ciclo_transaccion" },
+        ["32"] = new[] { "str_ticketID", "int_numero_tarjeta", "str_franquicia",
+                         "int_cod_aprobacion", "int_num_recibido" },
+        ["47"] = new[] { "str_ticketID", "int_codigo_banco" },
+        ["48"] = new[] { "str_ticketID" },
+        ["51"] = new[] { "str_ticketID", "int_numero_tarjeta", "str_franquicia",
+                         "int_cod_aprobacion", "int_num_recibido" },
+        ["77"] = Array.Empty<string>(),
+        ["41"] = Array.Empty<string>()
+    };
+
+    public static List<Dictionary<string, string>> Parse(string raw)
+    {
+        var result = new List<Dictionary<string, string>>();
+        if (string.IsNullOrWhiteSpace(raw)) return result;
+
+        var pagosRaw = raw
+            .Split(new[] { "|;|" }, StringSplitOptions.None)
+            .Select(p => p.Trim())
+            .Where(p => p.Length > 0);
+
+        foreach (var pagoRaw in pagosRaw)
+        {
+            var partes = pagoRaw.Split('|').Select(x => x.Trim()).ToArray();
+            var pago = new Dictionary<string, string>();
+
+            for (int i = 0; i < CAMPOS_BASE.Length; i++)
+                pago[CAMPOS_BASE[i]] = i < partes.Length ? partes[i] : "";
+
+            var medio = pago.GetValueOrDefault("int_id_forma_pago", "");
+            if (EXTRAS_POR_MEDIO.TryGetValue(medio, out var extras))
+            {
+                for (int i = 0; i < extras.Length; i++)
+                {
+                    var idx = CAMPOS_BASE.Length + i;
+                    pago[extras[i]] = idx < partes.Length ? partes[idx] : "";
+                }
+            }
+
+            result.Add(pago);
+        }
+        return result;
+    }
+}
+
+// Uso
+var response = await httpClient.PostAsJsonAsync($"{apiUrl}/VerificacionPago", body);
+var data = await response.Content.ReadFromJsonAsync<RespuestaVerificacion>();
+var pagos = StrResPagoParser.Parse(data.str_res_pago);
+
+foreach (var p in pagos)
+    Console.WriteLine($"Pago {p["int_n_pago"]}: estado {p["int_estado_pago"]}");
+```
+
+```php PHP
+<?php
+
+function parseStrResPago(string $raw): array {
+    if (trim($raw) === '') return [];
+
+    $camposBase = [
+        'int_ped_numero', 'int_n_pago', 'int_pago_parcial',
+        'int_pago_terminado', 'int_estado_pago',
+        'dbl_valor_pagado', 'dbl_total_pago', 'dbl_valor_iva_pagado',
+        'str_descripcion', 'str_id_cliente',
+        'str_nombre', 'str_apellido', 'str_telefono', 'str_email',
+        'str_campo1', 'str_campo2', 'str_campo3', 'str_campo4', 'str_campo5',
+        'dat_fecha', 'int_id_forma_pago'
+    ];
+
+    $extrasPorMedio = [
+        '29' => ['str_ticketID', 'int_codigo_servicio', 'int_codigo_banco',
+                 'str_nombre_banco', 'str_codigo_transaccion', 'int_ciclo_transaccion'],
+        '32' => ['str_ticketID', 'int_numero_tarjeta', 'str_franquicia',
+                 'int_cod_aprobacion', 'int_num_recibido'],
+        '47' => ['str_ticketID', 'int_codigo_banco'],
+        '48' => ['str_ticketID'],
+        '51' => ['str_ticketID', 'int_numero_tarjeta', 'str_franquicia',
+                 'int_cod_aprobacion', 'int_num_recibido'],
+        '77' => [], '41' => []
+    ];
+
+    $pagos = [];
+    foreach (explode('|;|', $raw) as $pagoRaw) {
+        $pagoRaw = trim($pagoRaw);
+        if ($pagoRaw === '') continue;
+
+        $partes = array_map('trim', explode('|', $pagoRaw));
+        $pago = [];
+
+        foreach ($camposBase as $i => $campo) {
+            $pago[$campo] = $partes[$i] ?? '';
+        }
+
+        $medio = $pago['int_id_forma_pago'] ?? '';
+        $extras = $extrasPorMedio[$medio] ?? [];
+        foreach ($extras as $i => $campo) {
+            $pago[$campo] = $partes[count($camposBase) + $i] ?? '';
+        }
+
+        $pagos[] = $pago;
+    }
+    return $pagos;
+}
+```
+
+</CodeGroup>
+
+## Casos especiales
+
+### `str_res_pago` vacío
+
+Cuando `int_cantidad_pagos: 0`, el campo puede venir como `""`, `null` o con solo `|;|`. El parser devuelve `[]` en todos los casos.
+
+### Varios intentos de pago (mixto)
+
+Si el pago fue mixto (`109: "1"`), verás varios objetos en el array retornado por el parser. Cada uno tiene su propio `int_n_pago`, `int_id_forma_pago` y `dbl_valor_pagado`. La suma de `dbl_valor_pagado` debería equivaler a `flt_total_con_iva` del request original.
+
+### Campos con pipe en el valor
+
+<Warning>
+**No verificado empíricamente:** no sabemos si ZonaPagos escapa los pipes en valores de campos libres como `str_opcional1-5`. Para evitar problemas, **no incluyas `|` ni `;` en los campos opcionales** que envíes.
+
+_[Pendiente con TI: confirmar si existe un mecanismo de escape.]_
+</Warning>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Campos por medio de pago" icon="list" href="/docs/zonapay/api/formatos/campos-por-medio-pago">
+    Detalle de cada campo adicional según el medio usado.
+  </Card>
+  <Card title="Estados de pago" icon="list-check" href="/docs/zonapay/api/referencia/estados-pago">
+    Qué significa cada valor de `int_estado_pago`.
+  </Card>
+</CardGroup>

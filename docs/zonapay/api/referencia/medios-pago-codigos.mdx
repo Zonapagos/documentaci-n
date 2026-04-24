@@ -1,0 +1,133 @@
+---
+title: "Medios de pago (códigos)"
+description: "Valores de int_id_forma_pago y campos adicionales por medio."
+---
+
+El campo `int_id_forma_pago` en `str_res_pago` indica con qué medio el usuario pagó.
+
+## Tabla de códigos
+
+| Código | Medio | Naturaleza | Campos adicionales en str_res_pago |
+|--------|-------|-----------|-----------------------------------|
+| **29** | PSE | Débito en línea | ticketID, código servicio, código banco, nombre banco, CUS, ciclo |
+| **32** | Tarjeta de Crédito | Crédito (Visa/MC/AmEx/Diners) | ticketID, 4 últimos dígitos, franquicia, código aprobación, número recibo |
+| **41** | PDF generado en ZonaPagos | Presencial con referencia | — |
+| **47** | Sistecrédito | Crédito especializado | ticketID, código banco |
+| **48** | Bancolombia (botón) | Débito directo | ticketID |
+| **51** | Codensa | Crédito Codensa | ticketID, 4 últimos dígitos, franquicia, código aprobación, número recibo |
+| **77** | Mefía | Convenio | — |
+
+<Note>
+Los códigos `42` (GANA) y `45` (Tarjeta Tuya) fueron eliminados en v3.0 (marzo 2024) del API.
+</Note>
+
+## Detalle por medio de pago
+
+### 29 — PSE
+
+Pagos Seguros en Línea: el usuario elige su banco, es redirigido al sitio del banco y autoriza el débito.
+
+Campos adicionales (después de los 21 comunes):
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `str_ticketID` | string | Identificador del pago ante el banco. |
+| `int_codigo_servicio` | int | Código de servicio con el que se inició (tu `str_valor` del código `50`). |
+| `int_codigo_banco` | int | Código del banco desde donde el usuario pagó. |
+| `str_nombre_banco` | string | Nombre del banco (ej. "BANCO UNION COLOMBIANO"). |
+| `str_codigo_transaccion` | string | **CUS** — Código Único de Seguimiento de PSE. Úsalo para reclamar ante el banco si hay problemas. |
+| `int_ciclo_transaccion` | int | Ciclo en el cual quedó la transacción. Solo PSE. |
+
+### 32 — Tarjeta de Crédito
+
+Pago con franquicia (Visa, Mastercard, American Express, Diners Club).
+
+Campos adicionales:
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `str_ticketID` | string | Identificador del pago ante la franquicia. |
+| `int_numero_tarjeta` | int | **Últimos 4 dígitos** de la tarjeta (nunca recibes el número completo). |
+| `str_franquicia` | string | `"Visa"`, `"Master Card"`, `"American Express"`, `"Diners Club"`. |
+| `int_cod_aprobacion` | string | Código de aprobación emitido por la franquicia. Se usa para conciliación. |
+| `int_num_recibido` | int | Código de recibo de la transacción. |
+
+### 41 — PDF generado en ZonaPagos
+
+El sistema genera un PDF con referencia de pago que el usuario lleva a puntos físicos (cajas, bancos). Sin campos adicionales.
+
+<Warning>
+Este tipo de pago **requiere sonda con frecuencia baja** (cada 1 hora) porque el usuario puede tardar 1 a 2 días en ir al punto físico a pagar.
+</Warning>
+
+### 47 — Sistecrédito
+
+Crédito de consumo operado por Sistecrédito.
+
+Campos adicionales:
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `str_ticketID` | string | Identificador del pago. |
+| `int_codigo_banco` | int | Código del banco/financiera. |
+
+### 48 — Bancolombia
+
+Botón de pago directo de Bancolombia.
+
+Campos adicionales:
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `str_ticketID` | string | Identificador del pago ante Bancolombia. |
+
+### 51 — Codensa
+
+Crédito fácil Codensa.
+
+Campos adicionales (idénticos a los de TC 32):
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `str_ticketID` | string | Identificador del pago. |
+| `int_numero_tarjeta` | int | Últimos 4 dígitos. |
+| `str_franquicia` | string | Franquicia. |
+| `int_cod_aprobacion` | string | Código de aprobación. |
+| `int_num_recibido` | int | Código de recibo. |
+
+### 77 — Mefía
+
+Convenio de pago. Sin campos adicionales específicos documentados.
+
+## Presencial vs. en línea
+
+| Tipo | Códigos | Comportamiento de sonda |
+|------|---------|------------------------|
+| **En línea** | 29, 32, 48, 51 | Sonda cada 10-15 minutos para estados pendientes. |
+| **Presencial** | 41, 47(parcial), 77 | Sonda cada 1 hora. El usuario necesita desplazarse físicamente. El pago puede tardar 1-2 días. |
+
+<Tip>
+Cuando identifiques un pago con `int_id_forma_pago` en `[41, 77]` y estado pendiente, **márcalo en tu BD** para que la sonda use la frecuencia horaria en lugar de la cada-10-min.
+</Tip>
+
+## Habilitación por comercio
+
+No todos los comercios tienen todos los medios habilitados. Al activar tu cuenta, ZonaPagos define cuáles puedes ofrecer. Para habilitar uno nuevo, contacta al equipo comercial.
+
+Puedes **desactivar temporalmente** medios desde `AdicionalesConfiguracion`:
+
+```json
+{ "int_codigo": 103, "str_valor": "1" }  // Desactivar PSE
+{ "int_codigo": 107, "str_valor": "1" }  // Desactivar TC
+```
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Parsear str_res_pago" icon="code" href="/docs/zonapay/api/formatos/parsear-str-res-pago">
+    Cómo extraer estos campos del texto plano.
+  </Card>
+  <Card title="Campos por medio de pago" icon="list" href="/docs/zonapay/api/formatos/campos-por-medio-pago">
+    Referencia rápida con orden exacto de campos.
+  </Card>
+</CardGroup>

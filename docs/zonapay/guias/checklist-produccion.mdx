@@ -1,0 +1,185 @@
+---
+title: "Checklist antes de producción"
+description: "Verifica estos 20 puntos antes de activar tu integración en producción."
+---
+
+Antes de cambiar de sandbox/pruebas a producción, revisa esta lista. Cada ítem es una lección aprendida de integraciones reales.
+
+## Credenciales y configuración
+
+<Check>
+**1. Credenciales de producción guardadas en secret manager.**
+No en código, no en repos, no en `.env` versionados.
+</Check>
+
+<Check>
+**2. Variables de entorno separadas** por ambiente (dev/staging/prod).
+Tu código debe apuntar a URLs y credenciales distintas en cada ambiente.
+</Check>
+
+<Check>
+**3. URL de retorno configurada en el comercio** con el dominio de producción.
+Coordina con tu gerente comercial si aún apunta a staging.
+</Check>
+
+<Check>
+**4. Código de servicio PSE correcto** si aceptas PSE.
+No reutilices el código de pruebas (2701).
+</Check>
+
+## Flujo técnico
+
+<Check>
+**5. InicioPago funcional con al menos 1 pago exitoso real** (monto bajo, $1000-$5000).
+No vayas a producción sin un pago de prueba real.
+</Check>
+
+<Check>
+**6. Callback del usuario correctamente expuesto, HTTPS, accesible públicamente.**
+Prueba desde un dispositivo fuera de tu red corporativa.
+</Check>
+
+<Check>
+**7. Verificación de estado implementada y probada.**
+Incluye el parser de `str_res_pago`.
+</Check>
+
+<Check>
+**8. Sonda corriendo cada 10-15 minutos** (obligatorio para PSE).
+Con lock para evitar ejecuciones concurrentes.
+</Check>
+
+<Check>
+**9. Sonda con frecuencia reducida** para pagos presenciales (41, 77) — cada 1 hora.
+</Check>
+
+<Check>
+**10. Mensajes obligatorios al usuario** para estados 999 y 4001.
+Textos exactos en [Mensajes de certificación](/docs/zonapay/guias/certificacion-pse).
+</Check>
+
+## Idempotencia
+
+<Check>
+**11. `str_id_pago` único por pedido.**
+Tu BD tiene `UNIQUE INDEX` sobre ese campo.
+</Check>
+
+<Check>
+**12. Callback idempotente:** recargar la página de retorno no procesa el pago dos veces.
+</Check>
+
+<Check>
+**13. Email de confirmación idempotente:** no se envía dos veces aunque el callback llegue repetido.
+</Check>
+
+<Check>
+**14. Entrega del producto idempotente.**
+</Check>
+
+## Manejo de errores
+
+<Check>
+**15. Errores de red con reintento + backoff exponencial.**
+No reintentos ciegos ante `int_codigo: 2`.
+</Check>
+
+<Check>
+**16. Timeouts razonables** (15-30s) en todos los requests a ZonaPagos.
+</Check>
+
+<Check>
+**17. Mensajes de error amigables** al usuario. No mostrar excepciones crudas.
+</Check>
+
+## Observabilidad
+
+<Check>
+**18. Logs estructurados** de `InicioPago`, `VerificacionPago`, callbacks, sonda.
+Con `str_id_pago` en cada log.
+</Check>
+
+<Check>
+**19. Alertas configuradas:**
+- Tasa de errores > 1% en 10 min.
+- Sonda no ejecutada en > 30 min.
+- Pagos >24h en estado `999`.
+</Check>
+
+<Check>
+**20. Dashboard de pagos** (Datadog, Grafana, etc.) con métricas clave: requests/min, tasa de éxito, tiempo promedio.
+</Check>
+
+## Seguridad
+
+<Check>
+**21. HTTPS en toda la aplicación** — frontend, callback, admin panel.
+</Check>
+
+<Check>
+**22. Rate limiting** en el endpoint de callback.
+</Check>
+
+<Check>
+**23. Credenciales con permisos mínimos** en el secret manager.
+Solo lectura, solo desde los servicios que las necesitan.
+</Check>
+
+<Check>
+**24. Revisión de logs**: ninguno contiene `str_clave` ni `str_pwd_Comercio`.
+</Check>
+
+## Legal y compliance
+
+<Check>
+**25. Términos y condiciones actualizados** mencionando ZonaPagos como procesador de pagos.
+</Check>
+
+<Check>
+**26. Política de privacidad** contempla el flujo de datos hacia ZonaPagos.
+</Check>
+
+<Check>
+**27. Certificación PSE aprobada** (si aplica).
+Sin esto, PSE no opera en producción.
+</Check>
+
+<Check>
+**28. Plan de retención de logs** definido (mínimo 1 año para auditorías financieras).
+</Check>
+
+## Operativo
+
+<Check>
+**29. Runbook** para el equipo de soporte: qué hacer ante pagos pendientes >24h, cómo consultar un pago, cómo reprocesar.
+</Check>
+
+<Check>
+**30. Contactos de soporte** de ZonaPagos a la mano.
+Email soporte + nombre de tu gerente comercial.
+</Check>
+
+## Pre-lanzamiento
+
+<Check>
+**Prueba canary:** habilita el API solo al 5% del tráfico inicialmente. Si todo va bien, sube gradualmente.
+</Check>
+
+<Check>
+**Plan de rollback:** si algo sale mal, cómo vuelves a la pasarela anterior / deshabilitas pagos.
+</Check>
+
+<Check>
+**Comunicado interno:** equipo comercial y soporte saben que sale a producción y cómo reconocer problemas.
+</Check>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Certificación PSE" icon="shield-check" href="/docs/zonapay/guias/certificacion-pse">
+    Obligatorio si aceptas PSE.
+  </Card>
+  <Card title="FAQ" icon="circle-question" href="/docs/zonapay/soporte/faq">
+    Respuestas a las dudas más frecuentes.
+  </Card>
+</CardGroup>

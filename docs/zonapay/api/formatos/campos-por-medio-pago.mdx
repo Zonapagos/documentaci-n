@@ -1,0 +1,120 @@
+---
+title: "Campos por medio de pago"
+description: "Orden exacto de los campos adicionales de str_res_pago según el medio usado."
+---
+
+Tras los 21 campos base de `str_res_pago`, se añaden campos adicionales que **dependen del medio de pago** (`int_id_forma_pago`).
+
+## 29 — PSE (6 campos adicionales)
+
+Orden después del campo 21:
+
+| Pos | Campo | Tipo | Descripción |
+|-----|-------|------|-------------|
+| 22 | `str_ticketID` | string | Identificador PSE. |
+| 23 | `int_codigo_servicio` | int | Tu código de servicio PSE (el que enviaste como código `50`). |
+| 24 | `int_codigo_banco` | int | Código del banco elegido por el usuario. |
+| 25 | `str_nombre_banco` | string | Nombre del banco (ej. `"BANCOLOMBIA"`, `"BANCO DAVIVIENDA"`). |
+| 26 | `str_codigo_transaccion` | string | **CUS** (Código Único de Seguimiento). Úsalo para reclamar ante el banco. |
+| 27 | `int_ciclo_transaccion` | int | Ciclo PSE. |
+
+### Ejemplo real
+
+```
+31|3773|1|1|1|12500|12500|0|camisa|123456789|Cristina|Vargas|3001234567|c@ejemplo.com|o1|o2|o3|||21/04/2026 12:58:41|29|18092100031|2701|1022|BANCO UNION COLOMBIANO|1468228|3|;|
+```
+
+Partes relevantes:
+- `29` → medio PSE
+- `18092100031` → str_ticketID
+- `2701` → int_codigo_servicio
+- `1022` → int_codigo_banco
+- `BANCO UNION COLOMBIANO` → str_nombre_banco
+- `1468228` → **CUS**
+- `3` → int_ciclo_transaccion
+
+## 32 — Tarjeta de Crédito (5 campos adicionales)
+
+| Pos | Campo | Tipo | Descripción |
+|-----|-------|------|-------------|
+| 22 | `str_ticketID` | string | Identificador ante la franquicia. |
+| 23 | `int_numero_tarjeta` | int | Últimos 4 dígitos de la tarjeta. |
+| 24 | `str_franquicia` | string | `"Visa"`, `"Master Card"`, `"American Express"`, `"Diners Club"`. |
+| 25 | `int_cod_aprobacion` | string | Código de aprobación (útil para conciliación). |
+| 26 | `int_num_recibido` | int | Número de recibo. |
+
+### Ejemplo
+
+```
+31|3800|1|1|1|50000|50000|7983|Compra Plan Pro|1020304050|Juan|Perez|3001234567|j@ejemplo.com||||||21/04/2026 14:32:00|32|TKT-9999|1234|Visa|AP456789|887766|;|
+```
+
+- `32` → TC
+- `TKT-9999` → str_ticketID
+- `1234` → últimos 4 dígitos
+- `Visa` → franquicia
+- `AP456789` → código aprobación
+
+## 47 — Sistecrédito (2 campos adicionales)
+
+| Pos | Campo | Tipo |
+|-----|-------|------|
+| 22 | `str_ticketID` | string |
+| 23 | `int_codigo_banco` | int |
+
+## 48 — Bancolombia (1 campo adicional)
+
+| Pos | Campo | Tipo |
+|-----|-------|------|
+| 22 | `str_ticketID` | string |
+
+## 51 — Codensa (5 campos adicionales)
+
+Los mismos que TC (32):
+
+| Pos | Campo | Tipo |
+|-----|-------|------|
+| 22 | `str_ticketID` | string |
+| 23 | `int_numero_tarjeta` | int |
+| 24 | `str_franquicia` | string |
+| 25 | `int_cod_aprobacion` | string |
+| 26 | `int_num_recibido` | int |
+
+## 41 y 77 — PDF y Mefía (sin campos adicionales)
+
+Estos medios **no añaden campos** al final de `str_res_pago`. Los 21 base son todo lo que recibes.
+
+## Diccionario consolidado
+
+| Campo extra | Aparece en medios |
+|-------------|-------------------|
+| `str_ticketID` | 29, 32, 47, 48, 51 |
+| `int_codigo_banco` | 29, 47 |
+| `int_codigo_servicio` | 29 |
+| `str_nombre_banco` | 29 |
+| `str_codigo_transaccion` (CUS) | 29 |
+| `int_ciclo_transaccion` | 29 |
+| `int_numero_tarjeta` | 32, 51 |
+| `str_franquicia` | 32, 51 |
+| `int_cod_aprobacion` | 32, 51 |
+| `int_num_recibido` | 32, 51 |
+
+## Uso práctico
+
+<Tip>
+**Para conciliación con bancos/franquicias**, los campos que debes preservar en tu BD son:
+- **PSE (29):** `str_codigo_transaccion` (CUS) y `int_codigo_banco`.
+- **TC (32, 51):** `int_cod_aprobacion` y `str_franquicia`.
+- **Otros:** `str_ticketID`.
+</Tip>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Parsear str_res_pago" icon="code" href="/docs/zonapay/api/formatos/parsear-str-res-pago">
+    Código listo para extraer estos campos.
+  </Card>
+  <Card title="Medios de pago" icon="credit-card" href="/docs/zonapay/api/referencia/medios-pago-codigos">
+    Descripción funcional de cada medio.
+  </Card>
+</CardGroup>

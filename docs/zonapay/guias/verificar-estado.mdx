@@ -1,0 +1,200 @@
+---
+title: "Verificar el estado"
+description: "Cómo consultar /VerificacionPago y actuar según la respuesta."
+---
+
+Consultar el estado con `/VerificacionPago` es el único mecanismo autoritativo para saber qué pasó con un pago.
+
+## Cuándo consultar
+
+<Steps>
+  <Step title="Al recibir el callback del usuario">
+    Inmediatamente. Única fuente de verdad antes de entregar producto.
+  </Step>
+  <Step title="Desde la sonda cada 10-15 min (obligatorio PSE)">
+    Para pagos en estado `999`, `4001`, etc.
+  </Step>
+  <Step title="Bajo demanda desde un panel admin">
+    Tu equipo de soporte puede consultar un pago específico para reconciliar con el cliente.
+  </Step>
+</Steps>
+
+## Request
+
+```json
+POST https://www.zonapagos.com/Apis_CicloPago/api/VerificacionPago
+Content-Type: application/json
+
+{
+  "int_id_comercio": 31416,
+  "str_usr_comercio": "Usuario",
+  "str_pwd_Comercio": "Clave",
+  "str_id_pago": "ORDEN-001",
+  "int_no_pago": -1
+}
+```
+
+<Warning>
+Observa que los campos tienen nombres diferentes a los de `/InicioPago`:
+- `str_usuario` → `str_usr_comercio`
+- `str_clave` → `str_pwd_Comercio` (con C mayúscula)
+</Warning>
+
+Con `int_no_pago: -1` obtienes **todos los intentos** asociados al `str_id_pago`. Si un pago fue mixto tendrás varios intentos.
+
+## Response
+
+```json
+{
+  "int_estado": 1,
+  "int_error": 0,
+  "str_detalle": null,
+  "int_cantidad_pagos": 1,
+  "str_res_pago": "31|3773|0|1|1|50000|50000|7983|Pedido|1020304050|Juan|Perez|3001234567|j@t.com||||||21/04/2026 14:32:00|29|TKT|2701|1022|BANCOLOMBIA|CUS123|3|;|"
+}
+```
+
+## Código de verificación
+
+```javascript
+import axios from "axios";
+import { parseStrResPago } from "./parser.js";
+
+const ESTADOS = {
+  APROBADO: [1],
+  PENDIENTE: [888, 999, 4001],
+  RECHAZADO: [1000, 1001, 4000, 4003]
+};
+
+export async function verificarPago(strIdPago, intNoPago = -1) {
+  const { data } = await axios.post(
+    `${process.env.ZP_API_URL}/VerificacionPago`,
+    {
+      int_id_comercio: Number(process.env.ZP_ID_COMERCIO),
+      str_usr_comercio: process.env.ZP_USUARIO,
+      str_pwd_Comercio: process.env.ZP_CLAVE,
+      str_id_pago: strIdPago,
+      int_no_pago: intNoPago
+    },
+    { timeout: 15000 }
+  );
+
+  // 1. Validar que el API ejecutó bien
+  if (data.int_estado !== 1) {
+    throw new Error(`API retornó int_estado=${data.int_estado}: ${data.str_detalle}`);
+  }
+
+  // 2. Revisar si hubo error de consulta
+  if (data.int_error !== 0) {
+    return { encontrado: false, error: data.str_detalle };
+  }
+
+  // 3. ¿Hay pagos registrados?
+  if (data.int_cantidad_pagos === 0) {
+    return { encontrado: false, estado: "no_iniciado" };
+  }
+
+  // 4. Parsear y categorizar
+  const intentos = parseStrResPago(data.str_res_pago);
+  const ultimo = intentos[intentos.length - 1];
+  const intEstado = Number(ultimo.int_estado_pago);
+
+  let categoria;
+  if (ESTADOS.APROBADO.includes(intEstado)) categoria = "aprobado";
+  else if (ESTADOS.PENDIENTE.includes(intEstado)) categoria = "pendiente";
+  else if (ESTADOS.RECHAZADO.includes(intEstado)) categoria = "rechazado";
+  else categoria = "desconocido";
+
+  return {
+    encontrado: true,
+    categoria,
+    estado: intEstado,
+    intentos,
+    ultimo
+  };
+}
+```
+
+## Actuar según la respuesta
+
+### Aprobado (`1`)
+
+```javascript
+if (resultado.categoria === "aprobado") {
+  await db.pagos.update(pagoId, {
+    estado_local: "aprobado",
+    int_estado_pago_zp: 1,
+    str_codigo_transaccion: resultado.ultimo.str_codigo_transaccion, // CUS
+    int_id_forma_pago: resultado.ultimo.int_id_forma_pago,
+    dt_cierre: new Date(),
+    respuesta_completa: resultado.ultimo
+  });
+  
+  // Entregar producto / activar servicio
+  await entregarProducto(pagoId);
+  
+  // Email de confirmación
+  await enviarEmailConfirmacion(pagoId);
+}
+```
+
+### Pendiente (`888`, `999`, `4001`)
+
+```javascript
+if (resultado.categoria === "pendiente") {
+  const esPresencial = [41, 77].includes(resultado.ultimo.int_id_forma_pago);
+  
+  await db.pagos.update(pagoId, {
+    estado_local: "pendiente",
+    int_estado_pago_zp: resultado.estado,
+    int_id_forma_pago: resultado.ultimo.int_id_forma_pago,
+    es_presencial: esPresencial
+  });
+  
+  // La sonda se encargará de consultar de nuevo
+  // Mostrar mensaje al usuario (ver certificación PSE)
+}
+```
+
+### Rechazado (`1000`, `1001`, `4000`, `4003`)
+
+```javascript
+if (resultado.categoria === "rechazado") {
+  await db.pagos.update(pagoId, {
+    estado_local: "rechazado",
+    int_estado_pago_zp: resultado.estado,
+    dt_cierre: new Date()
+  });
+  
+  // Permitir al usuario intentar de nuevo con un nuevo str_id_pago
+}
+```
+
+## Pagos mixtos (varios intentos)
+
+Cuando el usuario paga con pagos mixtos, `int_cantidad_pagos > 1` y cada elemento de `intentos` es un pago parcial.
+
+```javascript
+// Para un pago mixto aprobado
+if (resultado.intentos.every(i => Number(i.int_estado_pago) === 1)) {
+  // Todos los sub-pagos aprobados — pago global aprobado
+  const totalPagado = resultado.intentos.reduce(
+    (sum, i) => sum + Number(i.dbl_valor_pagado), 0
+  );
+  // totalPagado debe equivaler a flt_total_con_iva del pedido
+}
+```
+
+## Buenas prácticas
+
+<Check>**Timeout razonable** (15s). Un VerificacionPago que tarda 30s bloquea tu callback.</Check>
+<Check>**Log completo** del response (oculta la clave del request). Útil para auditoría PSE.</Check>
+<Check>**Nunca confíes solo en el callback** — siempre verifica.</Check>
+<Check>**Persiste el CUS** (`str_codigo_transaccion`) para reclamos ante el banco.</Check>
+<Check>**Maneja `int_cantidad_pagos: 0`** — puede significar que el usuario no inició el pago (el request a InicioPago fue exitoso pero el usuario nunca abrió la URL).</Check>
+
+## Próximo paso
+
+<Card title="Implementar sonda →" icon="arrow-right" href="/docs/zonapay/guias/implementar-sonda">
+  Job programado para pagos que quedaron pendientes.
+</Card>

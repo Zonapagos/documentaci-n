@@ -1,0 +1,144 @@
+---
+title: "Callback del comercio (GET)"
+sidebarTitle: "Callback (GET)"
+description: "Endpoint que tu comercio expone para recibir al usuario tras completar el pago."
+---
+
+## Visión general
+
+Al terminar el ciclo de pago (exitoso, rechazado o abandonado), ZonaPagos **redirige al usuario** a una URL que tú defines. Es un `GET` con parámetros en la query string.
+
+<Warning>
+Este endpoint lo expone **tu comercio**, no ZonaPagos. Esta página documenta qué recibes y cómo procesarlo.
+</Warning>
+
+## Cómo se configura la URL de retorno
+
+Tienes dos formas:
+
+<Tabs>
+  <Tab title="Estática (por comercio)">
+    Al activar tu comercio, el equipo de ZonaPagos configura la URL de retorno en tu perfil. Se usa para todos los pagos que inicies, a menos que envíes el código `104`.
+  </Tab>
+  <Tab title="Dinámica (por pago)">
+    En `AdicionalesConfiguracion` de `InicioPago`, envía:
+    
+    ```json
+    { "int_codigo": 104, "str_valor": "https://micomercio.com/retorno-pago" }
+    ```
+    
+    Esta URL sobrescribe la configuración estática solo para ese pago.
+  </Tab>
+</Tabs>
+
+## Parámetros que recibes
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `id_comercio` | integer | Tu `int_id_comercio`. Útil si usas el mismo endpoint para varios comercios. |
+| `id_pago` | string | El `str_id_pago` que enviaste en `/InicioPago`. Máximo 30 caracteres. |
+
+<Warning>
+**El callback no incluye el estado del pago ni ningún dato del pagador.** Solo te notifica que "el usuario terminó algo". Siempre debes llamar [`/VerificacionPago`](/docs/zonapay/api/endpoints/verificacion-pago) para saber qué pasó realmente.
+</Warning>
+
+## Ejemplo de request entrante
+
+```
+GET https://micomercio.com/retorno-pago?id_comercio=678&id_pago=ORDEN-TEST-001
+```
+
+## Cómo procesarlo correctamente
+
+<Steps>
+  <Step title="Valida que id_comercio coincida con el tuyo">
+    Si alguien intenta hacerte un callback con un id_comercio ajeno, rechaza.
+  </Step>
+  <Step title="Busca el pedido en tu base de datos">
+    Usa el `id_pago` para recuperar el pedido asociado.
+  </Step>
+  <Step title="Llama POST /VerificacionPago">
+    Esta es la única fuente de verdad sobre el estado del pago.
+  </Step>
+  <Step title="Actualiza tu BD según el estado">
+    Solo cuando `int_estado_pago === 1`, marca el pedido como pagado y entrega el producto.
+  </Step>
+  <Step title="Muestra al usuario un estado amigable">
+    Redirige a una página de confirmación, rechazo o pendiente según corresponda.
+  </Step>
+</Steps>
+
+## Ejemplo de implementación (Node.js / Express)
+
+```javascript
+import express from "express";
+import axios from "axios";
+
+const app = express();
+
+app.get("/retorno-pago", async (req, res) => {
+  const { id_comercio, id_pago } = req.query;
+  
+  // 1. Validar
+  if (Number(id_comercio) !== Number(process.env.ZP_ID_COMERCIO)) {
+    return res.status(403).send("id_comercio no coincide");
+  }
+  
+  // 2. Buscar el pedido
+  const pedido = await db.pedidos.findOne({ str_id_pago: id_pago });
+  if (!pedido) return res.status(404).send("Pedido no encontrado");
+  
+  // 3. Verificar estado contra ZonaPagos
+  const verif = await axios.post(
+    `${process.env.ZP_API_URL}/VerificacionPago`,
+    {
+      int_id_comercio: Number(process.env.ZP_ID_COMERCIO),
+      str_usr_comercio: process.env.ZP_USUARIO,
+      str_pwd_Comercio: process.env.ZP_CLAVE,
+      str_id_pago: id_pago,
+      int_no_pago: -1
+    }
+  );
+  
+  const pagos = parseStrResPago(verif.data.str_res_pago); // ver parser en la página del endpoint
+  const ultimoIntento = pagos[pagos.length - 1];
+  
+  // 4. Actualizar BD
+  if (ultimoIntento?.int_estado_pago === "1") {
+    await db.pedidos.update(pedido.id, { estado: "pagado" });
+    return res.redirect(`/gracias?id=${pedido.id}`);
+  }
+  
+  if (["999", "4001", "4000", "4003"].includes(ultimoIntento?.int_estado_pago)) {
+    return res.redirect(`/pago-pendiente?id=${pedido.id}`);
+  }
+  
+  return res.redirect(`/pago-rechazado?id=${pedido.id}`);
+});
+```
+
+## Consideraciones de seguridad
+
+<Warning>
+El callback **no incluye una firma verificable**. Un atacante que conozca tu URL de retorno y un `id_pago` válido podría disparar un GET falso.
+
+**Mitigación obligatoria:** siempre verifica el estado con `/VerificacionPago` antes de entregar valor. Nunca entregues un producto basándote solo en la llegada del callback.
+
+_[Pendiente con TI: evaluar incorporación de firma HMAC al callback.]_
+</Warning>
+
+<Check>**Usa HTTPS** en tu URL de retorno.</Check>
+<Check>**Rate-limit** el endpoint para evitar abusos.</Check>
+<Check>**Loguea todos los callbacks recibidos** con timestamp e IP de origen (la IP de ZonaPagos).</Check>
+<Check>**Idempotencia**: si recibes el callback dos veces para el mismo `id_pago`, no entregues el producto dos veces.</Check>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Verificar estado" icon="magnifying-glass" href="/docs/zonapay/guias/verificar-estado">
+    Guía completa de post-callback.
+  </Card>
+  <Card title="Seguridad del callback" icon="shield" href="/docs/zonapay/guias/seguridad-callback">
+    Patrones de seguridad adicionales.
+  </Card>
+</CardGroup>

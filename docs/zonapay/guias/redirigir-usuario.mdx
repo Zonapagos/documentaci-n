@@ -1,0 +1,128 @@
+---
+title: "Redirigir al usuario"
+description: "Cómo enviar al usuario al ciclo de pago de ZonaPagos."
+---
+
+Tras `/InicioPago`, recibes `str_url`. Aquí explicamos las mejores prácticas para redirigir al usuario.
+
+## Opción 1: Redirect HTTP 302 (recomendada)
+
+<CodeGroup>
+
+```javascript Express (Node.js)
+app.post("/checkout", async (req, res) => {
+  const strUrl = await iniciarPago(req.body);
+  res.redirect(302, strUrl);
+});
+```
+
+```python FastAPI
+from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
+
+app = FastAPI()
+
+@app.post("/checkout")
+async def checkout(data: CheckoutData):
+    str_url = await iniciar_pago(data)
+    return RedirectResponse(str_url, status_code=302)
+```
+
+```python Django
+from django.shortcuts import redirect
+
+def checkout(request):
+    str_url = iniciar_pago(request.POST)
+    return redirect(str_url)
+```
+
+```csharp ASP.NET Core
+[HttpPost("/checkout")]
+public async Task<IActionResult> Checkout([FromBody] CheckoutDto data)
+{
+    var strUrl = await _zonaPagos.IniciarPago(data);
+    return Redirect(strUrl);
+}
+```
+
+</CodeGroup>
+
+## Opción 2: Abrir en nueva pestaña
+
+Si prefieres mantener tu página abierta:
+
+```html
+<a href="{str_url}" target="_blank" rel="noopener">
+  Continuar al pago →
+</a>
+```
+
+<Warning>
+Con esta opción, tu página pierde contexto del usuario. Asegúrate de:
+- Guardar el `str_id_pago` en una cookie / localStorage para detectar el retorno.
+- Implementar polling a tu propio endpoint de "consultar estado" cada 30-60s.
+- Tener un fallback visual ("Esperando confirmación de pago...").
+</Warning>
+
+## Opción 3: Redirect con formulario POST
+
+Algunos frameworks no permiten redirect directo. Fallback:
+
+```html
+<form id="redirFormToZP" action="{str_url}" method="get">
+  <button type="submit">Pagar ahora</button>
+</form>
+<script>
+  document.getElementById("redirFormToZP").submit();
+</script>
+```
+
+## Lo que ve el usuario
+
+El usuario llega al formulario de ZonaPagos donde:
+
+1. **Elige el medio de pago** entre los que tienes habilitados (PSE, TC, botón Bancolombia, etc.).
+2. **Completa los datos** específicos del medio.
+   - PSE: elige el banco y es redirigido al sitio del banco.
+   - TC: digita número, vencimiento, CVV, cuotas.
+3. **Autoriza el cargo** en la red.
+4. **Es redirigido de vuelta a tu comercio** (URL de retorno).
+
+## Qué hacer en tu UI mientras tanto
+
+El usuario puede demorar 1-10 minutos en el ciclo de pago. Tu UI debe:
+
+<Check>**No hacer nada**: la redirección HTTP lleva al usuario fuera de tu app. Retorna al recibir el callback.</Check>
+<Check>**Si usas nueva pestaña**: muestra un spinner o mensaje "Completa el pago en la otra ventana".</Check>
+<Check>**Timeout razonable**: si tras 30 minutos no recibes callback, marca el pago como abandonado (no rechazado).</Check>
+
+## URLs del ciclo de pago
+
+| Ambiente | Dominio |
+|----------|--------|
+| Producción | `https://www.zonapagos.com/Ciclo_Pago/Pago.aspx?rut=...` |
+| Formulario dummie | `https://www.zonapagos.com/dummie_ciclopago/FormulariosWeb/InicioPago_Dummie.aspx` |
+
+<Tip>
+**Ideal para soporte**: al persistir `str_url` en tu BD, puedes reenviar el link al usuario si te escribe diciendo "no pude pagar". Funciona mientras la sesión no haya expirado en ZonaPagos (típicamente 30 minutos).
+</Tip>
+
+## Consideraciones UX
+
+<Check>
+**Dominio visible**: los usuarios confían más cuando ven `zonapagos.com` en la URL. Eso comunica seriedad (entidad vigilada).
+</Check>
+
+<Check>
+**Comunica antes del redirect**: muestra una pantalla intermedia "Vas a ser redirigido a nuestra pasarela de pagos segura" por 1-2 segundos para reducir la sensación de "salto" abrupto.
+</Check>
+
+<Check>
+**Branding coherente**: el formulario de ZonaPagos puede personalizarse con el logo y colores de tu comercio. Coordina con tu gerente comercial.
+</Check>
+
+## Próximo paso
+
+<Card title="Recibir el callback →" icon="arrow-right" href="/docs/zonapay/guias/recibir-callback">
+  Qué hacer cuando ZonaPagos devuelve al usuario a tu comercio.
+</Card>

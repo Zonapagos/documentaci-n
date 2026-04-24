@@ -1,0 +1,151 @@
+---
+title: "InformacionPago"
+description: "Estructura de los datos del pago y del cliente."
+---
+
+Objeto que se envía en el cuerpo de [`/InicioPago`](/docs/zonapay/api/endpoints/inicio-pago) con los datos del pago a procesar.
+
+## Campos
+
+<ParamField path="flt_total_con_iva" type="number" required>
+Total a pagar con IVA incluido. Máximo 2 decimales.
+
+**Ejemplos:** `50000`, `83000.50`, `125000`
+</ParamField>
+
+<ParamField path="flt_valor_iva" type="number">
+Total del IVA (incluido en `flt_total_con_iva`). Máximo 2 decimales. Si no hay IVA, envía `0`.
+
+**Obligatorio para certificación PSE.** Opcional en otros casos.
+</ParamField>
+
+<ParamField path="str_id_pago" type="string" required>
+Identificador único del pago que tú defines. Puede ser número de factura, UUID, etc.
+
+- Máximo 30 caracteres.
+- No puede tener ceros a la izquierda.
+- Debe ser único por comercio (no reutilizar).
+
+**Ejemplos válidos:** `"ORDEN-001"`, `"FAC-2026-04-21-8912"`, `"180924"`
+**Ejemplos inválidos:** `"0009"` (ceros a la izquierda), `"ORDEN-0001-con-mas-de-treinta-caracteres"` (demasiado largo)
+</ParamField>
+
+<ParamField path="str_descripcion_pago" type="string" required>
+Concepto o descripción del pago. Máximo 70 caracteres. El usuario lo verá en el formulario.
+
+**Ejemplo:** `"Compra de camisa talla M"`
+</ParamField>
+
+<ParamField path="str_email" type="string">
+Correo del cliente. Máximo 70 caracteres.
+
+<Tip>
+Aunque es opcional, **envíalo siempre**. ZonaPagos envía al cliente un correo con el comprobante del pago si este campo está presente.
+</Tip>
+</ParamField>
+
+<ParamField path="str_id_cliente" type="string">
+Documento de identificación del cliente (número de cédula, NIT, etc.). Máximo 30 caracteres.
+
+**Obligatorio para certificación PSE.**
+</ParamField>
+
+<ParamField path="str_tipo_id" type="string">
+Tipo de documento. Se envía el **código numérico como string**:
+
+| Valor | Tipo |
+|-------|------|
+| `"0"` | No Identificado |
+| `"1"` | Cédula de Ciudadanía (CC) |
+| `"2"` | Cédula de Extranjería (CE) |
+| `"3"` | NIT |
+| `"4"` | NUIP |
+| `"5"` | Tarjeta de Identidad (TI) |
+| `"6"` | Pasaporte (PP) |
+| `"7"` | Identificador Único del Cliente (IDC) |
+| `"8"` | Celular (CEL) |
+| `"9"` | Registro Civil (RC) |
+| `"10"` | Documento de Identificación Extranjero (DE) |
+| `"11"` | Otro no tipificado |
+
+**Obligatorio para certificación PSE.**
+
+Ver [Tipos de identificación](/docs/zonapay/api/referencia/tipos-id) para más detalle.
+</ParamField>
+
+<ParamField path="str_nombre_cliente" type="string">
+Nombre del cliente. Máximo 50 caracteres.
+</ParamField>
+
+<ParamField path="str_apellido_cliente" type="string">
+Apellido del cliente. Máximo 50 caracteres.
+</ParamField>
+
+<ParamField path="str_telefono_cliente" type="string">
+Teléfono del cliente. Máximo 50 caracteres.
+</ParamField>
+
+<ParamField path="str_opcional1" type="string">
+Campo opcional libre. Máximo 70 caracteres. Se devuelve en `VerificacionPago`.
+</ParamField>
+
+<ParamField path="str_opcional2" type="string">
+Campo opcional libre. Máximo 70 caracteres.
+</ParamField>
+
+<ParamField path="str_opcional3" type="string">
+Campo opcional libre. Máximo 70 caracteres.
+</ParamField>
+
+<ParamField path="str_opcional4" type="string">
+Campo opcional libre. Máximo 70 caracteres.
+</ParamField>
+
+<ParamField path="str_opcional5" type="string">
+Campo opcional libre. Máximo 70 caracteres.
+</ParamField>
+
+## Ejemplo completo
+
+```json
+{
+  "flt_total_con_iva": 83000,
+  "flt_valor_iva": 13250,
+  "str_id_pago": "ORDEN-2026-04-21-8912",
+  "str_descripcion_pago": "Suscripción mensual Plan Pro",
+  "str_email": "cliente@ejemplo.com",
+  "str_id_cliente": "1020304050",
+  "str_tipo_id": "1",
+  "str_nombre_cliente": "Juan",
+  "str_apellido_cliente": "Perez",
+  "str_telefono_cliente": "3001234567",
+  "str_opcional1": "canal-web",
+  "str_opcional2": "campaña-abril-2026",
+  "str_opcional3": "plan-pro-mensual"
+}
+```
+
+## Ejemplo mínimo
+
+Solo los obligatorios (fuera de PSE):
+
+```json
+{
+  "flt_total_con_iva": 50000,
+  "str_id_pago": "ORDEN-001",
+  "str_descripcion_pago": "Compra test"
+}
+```
+
+## Ejemplo mínimo para certificación PSE
+
+```json
+{
+  "flt_total_con_iva": 50000,
+  "flt_valor_iva": 7983,
+  "str_id_pago": "ORDEN-001",
+  "str_descripcion_pago": "Compra test",
+  "str_id_cliente": "1020304050",
+  "str_tipo_id": "1"
+}
+```

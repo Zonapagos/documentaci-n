@@ -1,0 +1,137 @@
+---
+title: "RespuestaVerificacion"
+description: "Estructura del response del endpoint /VerificacionPago."
+---
+
+Objeto JSON que recibes al llamar `POST /VerificacionPago`.
+
+## Estructura
+
+```json
+{
+  "int_estado": 1,
+  "int_error": 0,
+  "str_detalle": null,
+  "int_cantidad_pagos": 2,
+  "str_res_pago": "31|3773|1|1|1|...|;|"
+}
+```
+
+## Campos
+
+<ResponseField name="int_estado" type="integer">
+Resultado de la ejecución del API:
+
+- `1` → Ejecutó correctamente (aunque no hayan encontrado pagos).
+- `2` → Error de autenticación o validación.
+</ResponseField>
+
+<ResponseField name="int_error" type="integer">
+Resultado de la consulta:
+
+- `0` → Consulta exitosa. Puede haber o no pagos.
+- `-1` → Error. Ver `str_detalle`.
+</ResponseField>
+
+<ResponseField name="str_detalle" type="string | null">
+Texto del error cuando `int_error: -1`. `null` en caso de éxito. Máximo 50 caracteres.
+</ResponseField>
+
+<ResponseField name="int_cantidad_pagos" type="integer">
+Número de intentos de pago encontrados para el `str_id_pago` consultado.
+
+Si un pago fue mixto (pagado con varios medios), cada medio cuenta como un intento. Ejemplo: un pago dividido en 2 tarjetas arroja `int_cantidad_pagos: 2`.
+</ResponseField>
+
+<ResponseField name="str_res_pago" type="string">
+Detalle de las transacciones en **formato de texto plano** con separadores `|` y `|;|`.
+
+Ver [Parsear str_res_pago](/docs/zonapay/api/formatos/parsear-str-res-pago).
+</ResponseField>
+
+## Casos posibles
+
+### Pago aprobado con un solo intento
+
+```json
+{
+  "int_estado": 1,
+  "int_error": 0,
+  "str_detalle": null,
+  "int_cantidad_pagos": 1,
+  "str_res_pago": "31|3773|0|1|1|50000|50000|7983|...|21/04/2026 14:32:41|29|TKT|2701|1022|BANCOLOMBIA|CUS|3|;|"
+}
+```
+
+### Pago mixto con 2 intentos (1 PSE + 1 TC)
+
+```json
+{
+  "int_estado": 1,
+  "int_error": 0,
+  "str_detalle": null,
+  "int_cantidad_pagos": 2,
+  "str_res_pago": "31|3773|1|1|1|30000|50000|...|29|...|;|31|3774|1|1|1|20000|50000|...|32|...|;|"
+}
+```
+
+### Pago no encontrado
+
+```json
+{
+  "int_estado": 1,
+  "int_error": 0,
+  "str_detalle": null,
+  "int_cantidad_pagos": 0,
+  "str_res_pago": ""
+}
+```
+
+### Credenciales inválidas
+
+```json
+{
+  "int_estado": 2,
+  "int_error": -1,
+  "str_detalle": "Credenciales inválidas",
+  "int_cantidad_pagos": 0,
+  "str_res_pago": null
+}
+```
+
+## Patrón de manejo
+
+```javascript
+const { data } = await axios.post(`${API_URL}/VerificacionPago`, body);
+
+// 1. ¿Ejecutó bien?
+if (data.int_estado !== 1) {
+  throw new Error(`API falló: ${data.str_detalle || "sin detalle"}`);
+}
+
+// 2. ¿Hubo error de consulta?
+if (data.int_error !== 0) {
+  logger.warn("VerificacionPago con error", { detalle: data.str_detalle });
+  return { encontrado: false };
+}
+
+// 3. ¿Hay pagos?
+if (data.int_cantidad_pagos === 0) {
+  return { encontrado: false };
+}
+
+// 4. Parsear
+const pagos = parseStrResPago(data.str_res_pago);
+return { encontrado: true, pagos };
+```
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Parsear str_res_pago" icon="code" href="/docs/zonapay/api/formatos/parsear-str-res-pago">
+    Cómo extraer objetos manipulables.
+  </Card>
+  <Card title="Estados de pago" icon="list-check" href="/docs/zonapay/api/referencia/estados-pago">
+    Qué hacer con cada `int_estado_pago`.
+  </Card>
+</CardGroup>

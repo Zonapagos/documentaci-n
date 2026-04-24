@@ -1,0 +1,101 @@
+---
+title: "RespuestaInicioPago"
+description: "Estructura del response del endpoint /InicioPago."
+---
+
+Objeto JSON que recibes al llamar `POST /InicioPago`.
+
+## Estructura
+
+```json
+{
+  "int_codigo": 1,
+  "str_cod_error": "",
+  "str_descripcion_error": "",
+  "str_url": "https://www.zonapagos.com/Ciclo_Pago/Pago.aspx?rut=..."
+}
+```
+
+## Campos
+
+<ResponseField name="int_codigo" type="integer">
+Resultado de la operación:
+
+- `1` → Éxito. La transacción fue creada.
+- `2` → Error. Ver `str_descripcion_error`.
+</ResponseField>
+
+<ResponseField name="str_cod_error" type="string">
+Código de error interno (cuando aplica). Vacío cuando `int_codigo: 1`.
+</ResponseField>
+
+<ResponseField name="str_descripcion_error" type="string">
+Texto descriptivo del error.
+
+<Warning>
+Cuando la causa es un problema de validación interna del API (credenciales inválidas, campo faltante), este campo puede contener el mensaje `"Object reference not set to an instance of an object."` — una excepción .NET no manejada que no da pistas al integrador.
+
+_[Pendiente con TI: estandarizar mensajes de error.]_
+</Warning>
+</ResponseField>
+
+<ResponseField name="str_url" type="string">
+URL del ciclo de pago. Redirige al usuario aquí cuando `int_codigo: 1`. Máximo 126 caracteres.
+
+Formato:
+```
+https://www.zonapagos.com/Ciclo_Pago/Pago.aspx?rut=<token-hex-64>
+```
+
+<Warning>
+**No modifiques la URL.** El parámetro `rut` es un token criptográfico que identifica la transacción en el servidor. Cualquier manipulación invalida el pago.
+</Warning>
+</ResponseField>
+
+## Response en éxito
+
+```json
+{
+  "int_codigo": 1,
+  "str_cod_error": "",
+  "str_descripcion_error": "",
+  "str_url": "https://www.zonapagos.com/Ciclo_Pago/Pago.aspx?rut=6C44EA66B127D743C77B3247E9FE866A97C6A5730B86303836BD52D257186599"
+}
+```
+
+## Response en error
+
+```json
+{
+  "int_codigo": 2,
+  "str_cod_error": "",
+  "str_descripcion_error": "Object reference not set to an instance of an object.",
+  "str_url": null
+}
+```
+
+## Cómo manejarlo
+
+```javascript
+const { data } = await axios.post(`${API_URL}/InicioPago`, body);
+
+if (data.int_codigo === 1) {
+  // Persistir el str_id_pago con estado "pending"
+  await db.pagos.crear({ str_id_pago, url: data.str_url, estado: "pendiente" });
+  // Redirigir al usuario
+  return res.redirect(data.str_url);
+} else {
+  // Log del error (ocultando credenciales del body)
+  logger.error("InicioPago falló", {
+    int_codigo: data.int_codigo,
+    error: data.str_descripcion_error
+  });
+  return res.status(500).render("error-pago");
+}
+```
+
+## Ver también
+
+<Card title="Manejo de errores" icon="triangle-exclamation" href="/docs/zonapay/guias/manejo-errores">
+  Estrategias para interpretar `int_codigo: 2`.
+</Card>

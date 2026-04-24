@@ -1,0 +1,143 @@
+---
+title: "Manejo de errores"
+description: "Cómo interpretar y reaccionar ante errores del API de ZonaPagos."
+---
+
+## Taxonomía de errores
+
+<Tabs>
+  <Tab title="Errores de red (HTTP ≠ 200)">
+    La request no llegó al API, o la respuesta fue rechazada antes de procesarse.
+    
+    - HTTP 404: URL mal escrita.
+    - HTTP 415: `Content-Type` incorrecto.
+    - HTTP 500/502/503: problema del servidor.
+    - Timeout: red o servidor saturado.
+    
+    **Acción:** reintentar con backoff. No son errores del negocio.
+  </Tab>
+  
+  <Tab title="Errores de negocio (HTTP 200, int_codigo: 2)">
+    La request llegó pero el API rechazó. Típicamente credenciales, validación, o configuración.
+    
+    **Acción:** leer `str_descripcion_error`. No reintentar ciegamente (probablemente falle igual).
+  </Tab>
+  
+  <Tab title="Errores de la red financiera (int_codigo: 1 + estado final rechazado)">
+    La transacción llegó a la red pero el banco/franquicia la rechazó (`int_estado_pago` en `1000`, `1001`, `4000`, `4003`).
+    
+    **Acción:** permitir al usuario reintentar con nuevo `str_id_pago`.
+  </Tab>
+</Tabs>
+
+## Patrón recomendado
+
+```javascript
+async function iniciarPagoConManejo(datos) {
+  try {
+    const { data, status } = await axios.post(
+      `${ZP_API_URL}/InicioPago`, 
+      datos,
+      { 
+        headers: { "Content-Type": "application/json" },
+        timeout: 30000,
+        validateStatus: s => s < 500  // No tirar en 4xx, quiero verlos
+      }
+    );
+    
+    // Error de infraestructura
+    if (status !== 200) {
+      logger.error("HTTP error", { status, data });
+      throw new ErrorInfraestructura(`HTTP ${status}`);
+    }
+    
+    // Error de negocio
+    if (data.int_codigo !== 1) {
+      logger.warn("InicioPago rechazado", { 
+        error: data.str_descripcion_error,
+        req_id: datos.InformacionPago.str_id_pago
+      });
+      throw new ErrorNegocio(data.str_descripcion_error || "Error desconocido");
+    }
+    
+    return data.str_url;
+    
+  } catch (err) {
+    // Timeout u otro error de red
+    if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") {
+      throw new ErrorRed("Timeout al contactar ZonaPagos");
+    }
+    throw err;
+  }
+}
+```
+
+## Retry con backoff (solo para errores de red)
+
+```javascript
+async function withRetry(fn, maxIntentos = 3) {
+  for (let i = 0; i < maxIntentos; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!(err instanceof ErrorRed) || i === maxIntentos - 1) {
+        throw err;  // No reintentar errores de negocio
+      }
+      const delay = 1000 * Math.pow(2, i); // 1s, 2s, 4s
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+```
+
+<Warning>
+**Nunca reintentes `int_codigo: 2`.** Si las credenciales son malas o un campo está mal, reintentar no lo va a arreglar — solo multiplica el error.
+</Warning>
+
+## Mensajes de error conocidos
+
+| Mensaje | Causa probable | Acción |
+|---------|---------------|--------|
+| `"Object reference not set to an instance of an object."` | Credenciales inválidas o campo crítico faltante. Es una excepción .NET cruda. | Validar credenciales y estructura del body. |
+| `"Credenciales inválidas"` | Usuario/clave no reconocidos. | Revisar config. |
+| `"Código 50 requerido"` | Tu comercio tiene PSE pero no enviaste el código `50`. | Incluirlo en `AdicionalesConfiguracion`. |
+| `"str_id_pago ya existe"` | Intento de reutilizar un ID. | Usar un nuevo ID. |
+
+<Warning>
+**Los mensajes de error del API no son consistentes ni siempre descriptivos.** Loguea siempre el response completo para poder diagnosticar. _[Pendiente con TI: estandarizar mensajes de error.]_
+</Warning>
+
+## Qué mostrar al usuario
+
+<Check>**Nunca muestres `str_descripcion_error` crudo al usuario.** Puede contener nombres de variables internas o info sensible.</Check>
+<Check>**Mapea errores técnicos a mensajes de negocio:**
+
+```javascript
+function mensajeUsuario(err) {
+  if (err instanceof ErrorRed) return "Tuvimos un problema de conexión. Inténtalo de nuevo.";
+  if (err instanceof ErrorInfraestructura) return "El servicio de pagos está temporalmente indisponible.";
+  if (err instanceof ErrorNegocio) return "No pudimos procesar el pago. Verifica tus datos e inténtalo de nuevo.";
+  return "Algo salió mal. Si el problema persiste contáctanos.";
+}
+```
+</Check>
+
+## Alertas operativas
+
+Configura alertas para:
+
+- **Tasa de errores de red > 1%** en los últimos 10 min → problema del lado de ZonaPagos o de tu red.
+- **Tasa de `int_codigo: 2` > 5%** → probablemente bug en tu código (credenciales mal, campo mal construido).
+- **Sonda no ejecutada en > 30 min** → tu cron murió. Los pagos pendientes se acumulan.
+- **Pagos en estado `999` > 24h** → requieren intervención manual.
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Errores comunes" icon="triangle-exclamation" href="/docs/zonapay/soporte/errores-comunes">
+    Tabla completa de errores con diagnóstico.
+  </Card>
+  <Card title="Logging" icon="file-lines" href="/docs/zonapay/guias/logging">
+    Qué loguear para facilitar debugging.
+  </Card>
+</CardGroup>

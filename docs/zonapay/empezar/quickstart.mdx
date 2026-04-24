@@ -1,0 +1,210 @@
+---
+title: "Quickstart"
+description: "Tu primer pago en 10 minutos con código listo para copiar."
+---
+
+Esta guía te lleva por el flujo mínimo: iniciar pago → redirigir → verificar. Asume que ya tienes credenciales. Si no, ve a [Ambientes y credenciales](/docs/zonapay/empezar/ambientes).
+
+## 1. Variables de entorno
+
+Guarda tus credenciales en variables de entorno. Nunca las pongas en código versionado.
+
+```bash
+ZP_ID_COMERCIO=tu_id
+ZP_USUARIO=tu_usuario
+ZP_CLAVE='tu_clave'
+ZP_COD_SERVICIO=tu_codigo
+ZP_API_URL=https://www.zonapagos.com/Apis_CicloPago/api
+```
+
+## 2. Primer InicioPago
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$ZP_API_URL/InicioPago" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "InformacionPago": {
+      "flt_total_con_iva": 50000,
+      "flt_valor_iva": 7983,
+      "str_id_pago": "ORDEN-TEST-001",
+      "str_descripcion_pago": "Mi primer pago de prueba",
+      "str_email": "dev@ejemplo.com",
+      "str_id_cliente": "1020304050",
+      "str_tipo_id": "1",
+      "str_nombre_cliente": "Juan",
+      "str_apellido_cliente": "Perez",
+      "str_telefono_cliente": "3001234567"
+    },
+    "InformacionSeguridad": {
+      "int_id_comercio": '"$ZP_ID_COMERCIO"',
+      "str_usuario": "'"$ZP_USUARIO"'",
+      "str_clave": "'"$ZP_CLAVE"'",
+      "int_modalidad": -1
+    },
+    "AdicionalesPago": [],
+    "AdicionalesConfiguracion": [
+      { "int_codigo": 50, "str_valor": "'"$ZP_COD_SERVICIO"'" }
+    ]
+  }'
+```
+
+```javascript Node.js
+import axios from "axios";
+
+const { data } = await axios.post(`${process.env.ZP_API_URL}/InicioPago`, {
+  InformacionPago: {
+    flt_total_con_iva: 50000,
+    flt_valor_iva: 7983,
+    str_id_pago: "ORDEN-TEST-001",
+    str_descripcion_pago: "Mi primer pago de prueba",
+    str_email: "dev@ejemplo.com",
+    str_id_cliente: "1020304050",
+    str_tipo_id: "1",
+    str_nombre_cliente: "Juan",
+    str_apellido_cliente: "Perez",
+    str_telefono_cliente: "3001234567"
+  },
+  InformacionSeguridad: {
+    int_id_comercio: Number(process.env.ZP_ID_COMERCIO),
+    str_usuario: process.env.ZP_USUARIO,
+    str_clave: process.env.ZP_CLAVE,
+    int_modalidad: -1
+  },
+  AdicionalesPago: [],
+  AdicionalesConfiguracion: [
+    { int_codigo: 50, str_valor: process.env.ZP_COD_SERVICIO }
+  ]
+});
+
+if (data.int_codigo === 1) {
+  console.log("Redirigir al usuario a:", data.str_url);
+}
+```
+
+```python Python
+import os, requests
+
+body = {
+    "InformacionPago": {
+        "flt_total_con_iva": 50000,
+        "flt_valor_iva": 7983,
+        "str_id_pago": "ORDEN-TEST-001",
+        "str_descripcion_pago": "Mi primer pago de prueba",
+        "str_email": "dev@ejemplo.com",
+        "str_id_cliente": "1020304050",
+        "str_tipo_id": "1",
+        "str_nombre_cliente": "Juan",
+        "str_apellido_cliente": "Perez",
+        "str_telefono_cliente": "3001234567"
+    },
+    "InformacionSeguridad": {
+        "int_id_comercio": int(os.environ["ZP_ID_COMERCIO"]),
+        "str_usuario": os.environ["ZP_USUARIO"],
+        "str_clave": os.environ["ZP_CLAVE"],
+        "int_modalidad": -1
+    },
+    "AdicionalesPago": [],
+    "AdicionalesConfiguracion": [
+        {"int_codigo": 50, "str_valor": os.environ["ZP_COD_SERVICIO"]}
+    ]
+}
+
+data = requests.post(f"{os.environ['ZP_API_URL']}/InicioPago", json=body, timeout=30).json()
+if data["int_codigo"] == 1:
+    print("Redirigir al usuario a:", data["str_url"])
+```
+
+</CodeGroup>
+
+## 3. Respuesta esperada
+
+```json
+{
+  "int_codigo": 1,
+  "str_cod_error": "",
+  "str_descripcion_error": "",
+  "str_url": "https://www.zonapagos.com/Ciclo_Pago/Pago.aspx?rut=6C44EA66B127D743..."
+}
+```
+
+- `int_codigo: 1` = éxito. Redirige al usuario a `str_url`.
+- `int_codigo: 2` = error. Revisa `str_descripcion_error`.
+
+<Note>
+El parámetro `rut` en la URL es un token criptográfico. No lo modifiques.
+</Note>
+
+## 4. Redirigir al usuario
+
+En tu backend:
+
+```javascript
+// Node / Express
+return res.redirect(data.str_url);
+```
+
+El usuario completa el pago en el formulario de Zonapagos. Cuando termine, Zonapagos lo redirige a la URL de retorno de tu comercio.
+
+## 5. Verificar estado
+
+Al recibir al usuario de vuelta, consulta el estado:
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$ZP_API_URL/VerificacionPago" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "int_id_comercio": '"$ZP_ID_COMERCIO"',
+    "str_usr_comercio": "'"$ZP_USUARIO"'",
+    "str_pwd_Comercio": "'"$ZP_CLAVE"'",
+    "str_id_pago": "ORDEN-TEST-001",
+    "int_no_pago": -1
+  }'
+```
+
+```javascript Node.js
+const verif = await axios.post(`${process.env.ZP_API_URL}/VerificacionPago`, {
+  int_id_comercio: Number(process.env.ZP_ID_COMERCIO),
+  str_usr_comercio: process.env.ZP_USUARIO,
+  str_pwd_Comercio: process.env.ZP_CLAVE,
+  str_id_pago: "ORDEN-TEST-001",
+  int_no_pago: -1
+});
+```
+
+</CodeGroup>
+
+<Note>
+Los nombres de campos son diferentes entre endpoints: `str_usuario` ↔ `str_usr_comercio`, `str_clave` ↔ `str_pwd_Comercio`. No es typo, es así.
+</Note>
+
+## 6. Lo que sigue
+
+<CardGroup cols={2}>
+  <Card title="Recibir callback" icon="arrow-down" href="/docs/zonapay/guias/recibir-callback">
+    Cómo procesar correctamente el retorno del usuario.
+  </Card>
+  <Card title="Sonda" icon="satellite-dish" href="/docs/zonapay/guias/implementar-sonda">
+    Obligatoria si aceptas PSE.
+  </Card>
+  <Card title="Manejo de errores" icon="triangle-exclamation" href="/docs/zonapay/guias/manejo-errores">
+    Cómo reaccionar cuando algo falla.
+  </Card>
+  <Card title="Checklist producción" icon="list-check" href="/docs/zonapay/guias/checklist-produccion">
+    Antes de salir a producción.
+  </Card>
+</CardGroup>
+
+## Problemas frecuentes
+
+| Síntoma | Probable causa |
+|---------|---------------|
+| `int_codigo: 2` con mensaje `"Object reference not set..."` | Credenciales inválidas o `int_id_comercio` inexistente. |
+| HTTP 404 | URL mal escrita. Debe ser `Apis_CicloPago/api/InicioPago`. |
+| HTTP 415 | Falta header `Content-Type: application/json`. |
+| Timeout | Red corporativa bloquea `*.zonapagos.com` o el servidor está saturado. |
+
+Más casos en [Errores comunes](/docs/zonapay/soporte/errores-comunes).

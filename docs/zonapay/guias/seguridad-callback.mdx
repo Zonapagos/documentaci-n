@@ -1,0 +1,123 @@
+---
+title: "Seguridad del callback"
+description: "Cómo asegurar el endpoint que recibe al usuario de vuelta de ZonaPagos."
+---
+
+## El riesgo
+
+El callback GET que ZonaPagos dispara hacia tu URL de retorno **no está firmado**. Un atacante que conozca tu URL y un `str_id_pago` válido podría hacer un GET falso pretendiendo ser ZonaPagos:
+
+```
+GET https://micomercio.com/retorno?id_comercio=31416&id_pago=ORDEN-001
+```
+
+Si tu código confía en el callback como fuente de verdad, podrías entregar un producto sin que el pago haya existido.
+
+## Mitigación obligatoria
+
+<Check>
+**Siempre verifica con `/VerificacionPago` desde tu backend.** Nunca confíes en el callback como fuente de verdad.
+</Check>
+
+```javascript
+app.get("/pago/retorno", async (req, res) => {
+  const { id_comercio, id_pago } = req.query;
+  
+  // 1. Validar id_comercio
+  if (Number(id_comercio) !== Number(process.env.ZP_ID_COMERCIO)) {
+    return res.status(403).send("Forbidden");
+  }
+  
+  // 2. SIEMPRE verificar contra ZonaPagos (no confiar en el callback)
+  const estado = await verificarConZonaPagos(id_pago);
+  
+  // 3. Decidir según lo que dice ZonaPagos, NO lo que dice el callback
+  return responderSegunEstado(res, estado);
+});
+```
+
+## Defensas adicionales
+
+### Rate limiting
+
+```javascript
+import rateLimit from "express-rate-limit";
+
+app.use("/pago/retorno", rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  message: "Demasiados requests"
+}));
+```
+
+### IP allowlist (opcional, requiere coordinación con ZonaPagos)
+
+<Warning>
+_[Pendiente con TI: ZonaPagos debería publicar el rango de IPs desde donde origina los callbacks, para que los comercios puedan restringir por IP. Actualmente no hay documentación pública de esos rangos.]_
+</Warning>
+
+### Validar que `id_pago` existe en tu BD
+
+```javascript
+const pago = await db.pagos.findOne({ str_id_pago: id_pago });
+if (!pago) {
+  logger.warn("Callback para pago inexistente", { id_pago, ip: req.ip });
+  return res.status(404).send("Pago no encontrado");
+}
+```
+
+### Logs de auditoría
+
+```javascript
+await db.callbacks_auditoria.insert({
+  str_id_pago: id_pago,
+  id_comercio: id_comercio,
+  ip_origen: req.ip,
+  user_agent: req.headers["user-agent"],
+  timestamp: new Date()
+});
+```
+
+Útil si PSE o la franquicia te solicita evidencia durante auditorías o disputas.
+
+## Qué NO hacer
+
+<Warning>
+❌ **No entregues el producto solo por recibir el callback.**
+```javascript
+// MAL
+app.get("/retorno", async (req, res) => {
+  await marcarPedidoComoPagado(req.query.id_pago);  // ← Vulnerable a falsificación
+  res.render("gracias");
+});
+```
+</Warning>
+
+<Warning>
+❌ **No asumas que `id_pago` del callback es confiable sin verificar.**
+```javascript
+// MAL
+const pago = await db.pagos.findOne({ str_id_pago: req.query.id_pago });
+await entregar(pago);  // ← Sin verificar estado con ZonaPagos
+```
+</Warning>
+
+<Warning>
+❌ **No uses el callback para actualizar montos.** El callback no incluye monto. Si tu sistema lee un monto de ahí, no hay de dónde.
+</Warning>
+
+## HTTPS obligatorio
+
+Tu URL de retorno **debe** ser HTTPS. ZonaPagos no redirige a HTTP plano en producción.
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Recibir callback" icon="arrow-down" href="/docs/zonapay/guias/recibir-callback">
+    Implementación paso a paso.
+  </Card>
+  <Card title="Verificar estado" icon="magnifying-glass" href="/docs/zonapay/guias/verificar-estado">
+    Único mecanismo autoritativo.
+  </Card>
+</CardGroup>

@@ -1,0 +1,163 @@
+---
+title: "Certificación PSE"
+description: "Requisitos, mensajes obligatorios y proceso de certificación ante ACH Colombia."
+---
+
+Si tu comercio va a procesar pagos por **PSE**, debe ser certificado ante ACH Colombia antes de operar en producción. Sin certificación, PSE no habilita tus transacciones, aunque el resto de la integración esté lista.
+
+## Requisitos técnicos
+
+<Check>
+**Sonda implementada correctamente.** Consulta pagos pendientes cada 10-15 minutos (cada 1 hora para pagos presenciales), con lock para evitar concurrencia. Ver [Implementar la sonda](/docs/zonapay/guias/implementar-sonda).
+</Check>
+
+<Check>
+**Manejo de todos los estados** de `int_estado_pago`: `1`, `888`, `999`, `1000`, `1001`, `4000`, `4001`, `4003`. Ver [Estados de pago](/docs/zonapay/api/referencia/estados-pago).
+</Check>
+
+<Check>
+**No duplicar pagos.** Cada pedido usa un `str_id_pago` único. Callback idempotente. Ver [Idempotencia](/docs/zonapay/guias/idempotencia).
+</Check>
+
+<Check>
+**Persistencia del CUS** (`str_codigo_transaccion`). Necesario para reclamos ante el banco.
+</Check>
+
+<Check>
+**Datos obligatorios del pagador**: `str_id_cliente`, `str_tipo_id`, `flt_valor_iva` deben enviarse en todo `InicioPago` PSE.
+</Check>
+
+<Check>
+**Mensajes obligatorios al usuario** para estados `999` y `4001` (ver abajo).
+</Check>
+
+## Requisitos de experiencia y legales
+
+<Check>Mostrar al usuario el resultado de cada pago (no dejarlo en limbo).</Check>
+<Check>Permitir consultar el estado de un pago desde tu sitio.</Check>
+<Check>No mostrar errores técnicos crudos al usuario final.</Check>
+<Check>Términos y condiciones publicados y aceptados antes del pago.</Check>
+<Check>Política de privacidad que contemple el flujo de datos.</Check>
+<Check>Información visible del comercio: razón social, NIT, dirección.</Check>
+<Check>Contactos de soporte visibles en el sitio.</Check>
+<Check>Procedimiento de reembolso documentado.</Check>
+
+---
+
+## Mensajes obligatorios al usuario
+
+Cuando consultas `VerificacionPago` y recibes un estado pendiente, **debes mostrar al usuario** los siguientes textos. La redacción fue validada por ACH Colombia y PSE exige que se use de forma literal para certificar.
+
+### Estado `999` — Pendiente por finalizar (PSE)
+
+Cuando `int_estado_pago: 999` con `int_id_forma_pago: 29`:
+
+<Frame>
+<div style={{ background: "#F9FAFB", padding: "1rem", borderLeft: "4px solid #00A886", fontStyle: "italic" }}>
+En este momento su Número de Referencia o Factura **(id_Pago)** presenta un proceso de pago cuya transacción se encuentra **PENDIENTE** de recibir confirmación por parte de su entidad financiera, por favor espere unos minutos y vuelva a consultar más tarde para verificar si su pago fue confirmado de forma exitosa. Si desea mayor información sobre el estado actual de su operación puede comunicarse a nuestras líneas de atención al cliente **57-1-9999999** o enviar un correo electrónico a **email@email.com.co** y preguntar por el estado de la transacción: **&lt;#CUS&gt;**
+</div>
+</Frame>
+
+**Variables a reemplazar:**
+
+| Variable | Fuente |
+|----------|--------|
+| `(id_Pago)` | El `str_id_pago` del pedido. |
+| `57-1-9999999` | Tu número de atención al cliente. |
+| `email@email.com.co` | Tu email de soporte. |
+| `<#CUS>` | El valor del campo `str_codigo_transaccion` de `str_res_pago`. |
+
+### Estado `4001` — Pendiente CR (Tarjeta de Crédito)
+
+Cuando `int_estado_pago: 4001` con `int_id_forma_pago: 32`:
+
+<Frame>
+<div style={{ background: "#F9FAFB", padding: "1rem", borderLeft: "4px solid #F59E0B", fontStyle: "italic" }}>
+En este momento su Número de Referencia o Factura **(id_Pago)** presenta un proceso de pago cuya transacción se encuentra **PENDIENTE** de recibir confirmación por parte de su entidad financiera, por favor espere unos minutos y vuelva a consultar más tarde para verificar si su pago fue confirmado de forma exitosa. Si desea mayor información sobre el estado actual de su operación puede comunicarse a nuestras líneas de atención al cliente **57-1-9999999** o enviar un correo electrónico a **email@email.com.co**.
+</div>
+</Frame>
+
+Diferencia con PSE: en TC no hay CUS, por lo que se omite la referencia al código de transacción.
+
+### Implementación sugerida
+
+```javascript
+function mensajePendiente(pago) {
+  const telefono = process.env.SOPORTE_TELEFONO;
+  const email = process.env.SOPORTE_EMAIL;
+
+  const base = `En este momento su Número de Referencia o Factura (${pago.str_id_pago}) ` +
+               `presenta un proceso de pago cuya transacción se encuentra PENDIENTE de ` +
+               `recibir confirmación por parte de su entidad financiera, por favor espere ` +
+               `unos minutos y vuelva a consultar más tarde para verificar si su pago fue ` +
+               `confirmado de forma exitosa. Si desea mayor información sobre el estado ` +
+               `actual de su operación puede comunicarse a nuestras líneas de atención al ` +
+               `cliente ${telefono} o enviar un correo electrónico a ${email}`;
+
+  if (pago.int_id_forma_pago === 29 && pago.str_codigo_transaccion) {
+    return `${base} y preguntar por el estado de la transacción: ${pago.str_codigo_transaccion}.`;
+  }
+  return `${base}.`;
+}
+```
+
+### Dónde mostrarlo
+
+- En la página que ve el usuario tras el callback cuando el estado es pendiente.
+- En consultas posteriores desde "Mis pedidos" si el pago sigue pendiente.
+- En el email de notificación al usuario, si lo envías.
+
+---
+
+## Proceso de certificación
+
+<Steps>
+  <Step title="Auto-evaluación">
+    Revisa esta página y el [checklist de producción](/docs/zonapay/guias/checklist-produccion). Marca cada ítem.
+  </Step>
+  <Step title="Solicitud formal">
+    Escribe a [soporte@zonavirtual.com.co](mailto:soporte@zonavirtual.com.co) con asunto `[CERTIFICACIÓN PSE]` indicando tu `int_id_comercio`.
+  </Step>
+  <Step title="Sesión de pruebas">
+    Se agenda una sesión (1-2 horas). Comparte pantalla y demuestras el flujo completo.
+  </Step>
+  <Step title="Pruebas con montos bajos">
+    Típicamente entre $1.000 y $5.000 COP por transacción.
+  </Step>
+  <Step title="Validación de escenarios">
+    Se verifican los casos: aprobado, rechazado, pendiente (999), CR (4001), abandonado.
+  </Step>
+  <Step title="Validación de mensajes">
+    Se verifica que los mensajes obligatorios aparezcan correctamente.
+  </Step>
+  <Step title="Certificación emitida">
+    Tras aprobación, se notifica a ACH y se habilita PSE en producción.
+  </Step>
+</Steps>
+
+## Escenarios que te pedirán demostrar
+
+| Escenario | Qué se valida |
+|-----------|---------------|
+| **Pago aprobado** (`1`) | Callback, VerificacionPago, marca en BD, email, persistencia del CUS. |
+| **Pago rechazado** (`1000`/`1001`) | Marca en BD, mensaje amigable, permitir reintento con nuevo `str_id_pago`. |
+| **Pago pendiente** (`999`) | Mensaje obligatorio con CUS, sonda consultando, actualización al resolverse. |
+| **Pago abandonado** (`888` sostenido) | Marca como abandonado tras 30 min sin evolución. |
+| **Reintento** | Usuario puede pagar de nuevo con nuevo `str_id_pago`. |
+| **Idempotencia del callback** | Recargar la página de retorno no procesa el pago dos veces. |
+| **Credenciales inválidas** | Tu sistema maneja `int_codigo: 2` sin crashear. |
+
+## Consecuencias de no certificar correctamente
+
+Operar PSE sin cumplir estos requisitos puede llevar a suspensión por ACH Colombia, auditoría retrospectiva, sanciones económicas y pérdida de confianza de usuarios finales. Zonapagos tiene responsabilidad solidaria ante ACH, por lo que un incumplimiento de tu parte también nos afecta a nosotros.
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Checklist producción" icon="list-check" href="/docs/zonapay/guias/checklist-produccion">
+    Lista completa antes de salir a producción.
+  </Card>
+  <Card title="Implementar sonda" icon="satellite-dish" href="/docs/zonapay/guias/implementar-sonda">
+    Componente clave para la certificación.
+  </Card>
+</CardGroup>

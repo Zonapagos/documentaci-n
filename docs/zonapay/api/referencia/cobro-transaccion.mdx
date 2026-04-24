@@ -1,0 +1,113 @@
+---
+title: "Cobro por transacción (fees)"
+description: "Cómo configurar fees adicionales sobre PSE y TC."
+---
+
+ZonaPagos permite que el comercio cobre al usuario un **fee adicional por transacción** (por ejemplo, para cubrir la comisión del medio de pago). Se configura en `AdicionalesConfiguracion`.
+
+<Info>
+Este cobro es **opcional** y lo define el comercio. No tiene relación con la tarifa que ZonaPagos cobra al comercio, que se acuerda comercialmente.
+</Info>
+
+## Modalidades
+
+Hay dos modalidades de fee, excluyentes entre sí:
+
+<Tabs>
+  <Tab title="Cobro por porcentaje">
+    El fee es un % del valor de la transacción.
+
+    Ejemplo: 1.95% sobre $100.000 = $1.950 adicionales.
+  </Tab>
+  <Tab title="Cobro por valor fijo">
+    El fee es un monto fijo independiente del valor.
+
+    Ejemplo: $1.200 sobre cualquier transacción (dentro de un rango configurado).
+  </Tab>
+</Tabs>
+
+## Configuración para PSE
+
+| Código | Valor | Qué hace |
+|--------|-------|---------|
+| `500` | `"1"` | Activa el cobro por transacción PSE. |
+| `50001` | `"1"` o `"0"` | `1` = porcentaje, `0` = fijo. |
+| `50002` | String 4 dígitos | Porcentaje si modalidad = porcentaje. |
+| `50003` | Entero | Monto mínimo para aplicar el cobro porcentual. |
+| `50004` | Entero | Monto máximo para aplicar el cobro porcentual. |
+| `50005` | Entero | Valor fijo a cobrar si modalidad = fijo. |
+| `50006` | Entero | Monto máximo para el cobro fijo. |
+| `50007` | Entero | IVA asociado al fee (informativo). |
+| `50008` | `"1"` o `"0"` | Aproximación del resultado: `1` = a mayor, `0` = a menor. |
+
+## Configuración para TC
+
+Simétrico a PSE, con códigos `501`, `50101` – `50108`.
+
+## Ejemplos
+
+### PSE con fee porcentual del 1.95%
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,    "str_valor": "2701" },
+  { "int_codigo": 500,   "str_valor": "1" },
+  { "int_codigo": 50001, "str_valor": "1" },
+  { "int_codigo": 50002, "str_valor": "0195" },
+  { "int_codigo": 50008, "str_valor": "1" }
+]
+```
+
+**Efecto:** una transacción de $100.000 cobra $1.950 adicionales al usuario (aproximado hacia arriba si hay decimales).
+
+### PSE con fee fijo de $1.200
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,    "str_valor": "2701" },
+  { "int_codigo": 500,   "str_valor": "1" },
+  { "int_codigo": 50001, "str_valor": "0" },
+  { "int_codigo": 50005, "str_valor": "1200" }
+]
+```
+
+### TC con fee porcentual del 2.5%
+
+```json
+"AdicionalesConfiguracion": [
+  { "int_codigo": 50,    "str_valor": "2701" },
+  { "int_codigo": 501,   "str_valor": "1" },
+  { "int_codigo": 50101, "str_valor": "1" },
+  { "int_codigo": 50102, "str_valor": "0250" },
+  { "int_codigo": 50108, "str_valor": "1" }
+]
+```
+
+## Consideraciones
+
+<Warning>
+**El cobro por transacción se suma al `flt_total_con_iva` que envías.** El usuario ve el total final en el formulario de pago. Comunícalo claramente en tu checkout para no generar confusión.
+</Warning>
+
+<Check>
+**Regulación:** verifica con tu área legal si cobrar un fee adicional al usuario cumple con la regulación de tu país y categoría comercial.
+</Check>
+
+<Check>
+**Experiencia de usuario:** considera mostrar el fee en el carrito antes del checkout, no como sorpresa al final.
+</Check>
+
+<Check>
+**Aproximación:** las redes de pago no aceptan decimales. Si usas porcentaje, configura el código `50008` / `50108` según prefieras redondear a mayor (más ingreso) o a menor (mejor UX).
+</Check>
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="AdicionalesConfiguracion" icon="sliders" href="/docs/zonapay/api/referencia/adicionales-configuracion">
+    Catálogo completo de códigos.
+  </Card>
+  <Card title="Caso de uso: cobro por transacción" icon="percent" href="/docs/zonapay/guias/cobro-transaccion">
+    Implementación paso a paso.
+  </Card>
+</CardGroup>

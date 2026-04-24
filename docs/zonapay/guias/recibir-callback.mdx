@@ -1,0 +1,191 @@
+---
+title: "Recibir el callback"
+description: "Qué hacer cuando ZonaPagos redirige al usuario a tu URL de retorno."
+---
+
+## El callback
+
+Al terminar el ciclo de pago (exitoso, fallido, o abandonado), ZonaPagos redirige al usuario mediante HTTP `GET` a la URL de retorno del comercio. La request incluye dos parámetros en query string:
+
+```
+GET https://micomercio.com/pago/retorno?id_comercio=31416&id_pago=ORDEN-001
+```
+
+<Warning>
+**El callback NO incluye el estado del pago.** Solo notifica que "el usuario terminó algo". Tienes que llamar `/VerificacionPago` desde tu backend para saber qué pasó.
+</Warning>
+
+## Implementación
+
+### Paso 1: Exponer el endpoint
+
+Tu comercio debe tener un endpoint HTTP público en la URL configurada.
+
+<CodeGroup>
+
+```javascript Express
+app.get("/pago/retorno", async (req, res) => {
+  const { id_comercio, id_pago } = req.query;
+  return await procesarCallback(id_comercio, id_pago, res);
+});
+```
+
+```python FastAPI
+@app.get("/pago/retorno")
+async def retorno_pago(id_comercio: int, id_pago: str):
+    return await procesar_callback(id_comercio, id_pago)
+```
+
+</CodeGroup>
+
+### Paso 2: Validar
+
+```javascript
+async function procesarCallback(idComercio, idPago, res) {
+  // 1. Validar que el id_comercio sea el nuestro
+  if (Number(idComercio) !== Number(process.env.ZP_ID_COMERCIO)) {
+    logger.warn("Callback con id_comercio ajeno", { idComercio });
+    return res.status(403).send("Forbidden");
+  }
+
+  // 2. Buscar el pago en nuestra BD
+  const pago = await db.pagos.findOne({ str_id_pago: idPago });
+  if (!pago) {
+    logger.error("Callback para pago inexistente", { idPago });
+    return res.status(404).send("Pago no encontrado");
+  }
+
+  // 3. Verificar estado con ZonaPagos
+  const estado = await verificarEstado(idPago);
+
+  // 4. Actuar según el estado
+  return redirigirPorEstado(res, pago, estado);
+}
+```
+
+### Paso 3: Verificar estado
+
+```javascript
+async function verificarEstado(idPago) {
+  const { data } = await axios.post(
+    `${process.env.ZP_API_URL}/VerificacionPago`,
+    {
+      int_id_comercio: Number(process.env.ZP_ID_COMERCIO),
+      str_usr_comercio: process.env.ZP_USUARIO,
+      str_pwd_Comercio: process.env.ZP_CLAVE,
+      str_id_pago: idPago,
+      int_no_pago: -1
+    }
+  );
+
+  if (data.int_estado !== 1 || data.int_cantidad_pagos === 0) {
+    return { estado: "abandonado" };
+  }
+
+  const pagos = parseStrResPago(data.str_res_pago);
+  const ultimo = pagos[pagos.length - 1];
+  return { estado: categorizarEstado(ultimo.int_estado_pago), detalle: ultimo };
+}
+
+function categorizarEstado(intEstadoPago) {
+  const n = Number(intEstadoPago);
+  if (n === 1) return "aprobado";
+  if ([999, 4001].includes(n)) return "pendiente";
+  if ([1000, 1001, 4000, 4003].includes(n)) return "rechazado";
+  return "desconocido";
+}
+```
+
+### Paso 4: Redirigir al usuario a una página amigable
+
+```javascript
+async function redirigirPorEstado(res, pago, estado) {
+  switch (estado.estado) {
+    case "aprobado":
+      await marcarPagoAprobado(pago.id, estado.detalle);
+      await enviarConfirmacionEmail(pago);
+      return res.redirect(`/gracias/${pago.id}`);
+    
+    case "pendiente":
+      // ZonaPagos requiere mostrar mensaje específico (ver certificación PSE)
+      return res.redirect(`/pago-pendiente/${pago.id}`);
+    
+    case "rechazado":
+      return res.redirect(`/pago-rechazado/${pago.id}`);
+    
+    case "abandonado":
+      return res.redirect(`/pago-abandonado/${pago.id}`);
+    
+    default:
+      return res.redirect(`/pago-en-revision/${pago.id}`);
+  }
+}
+```
+
+## Idempotencia
+
+El usuario puede recargar la página del callback, o ZonaPagos puede enviar el callback dos veces (raro pero posible).
+
+<Check>
+**Al marcar como aprobado**: usa una operación idempotente.
+
+```sql
+UPDATE pagos 
+SET estado_local = 'aprobado', 
+    dt_cierre = COALESCE(dt_cierre, NOW())
+WHERE str_id_pago = $1 AND estado_local != 'aprobado';
+```
+</Check>
+
+<Check>
+**Al enviar email de confirmación**: verifica que no hayas enviado antes.
+
+```sql
+INSERT INTO emails_enviados (str_id_pago, tipo) 
+VALUES ($1, 'confirmacion')
+ON CONFLICT (str_id_pago, tipo) DO NOTHING
+RETURNING *;
+```
+</Check>
+
+## ¿Qué pasa si el usuario nunca regresa?
+
+A veces el usuario cierra la pestaña antes del redirect final. Tu backend **no** va a recibir el callback, pero el pago puede estar aprobado.
+
+**Por eso existe la [sonda](/docs/zonapay/guias/implementar-sonda)**: detecta estos casos.
+
+## Consideraciones de seguridad
+
+<Warning>
+El callback **no está firmado**. Un atacante que conozca tu URL y un `id_pago` válido podría disparar un GET falso pretendiendo ser ZonaPagos.
+
+**Mitigación obligatoria:**
+- Siempre verifica el estado con `/VerificacionPago` (como muestra este flujo).
+- Nunca entregues producto basándote solo en la llegada del callback.
+- Rate-limit tu endpoint para evitar abuse.
+</Warning>
+
+## Ejemplo completo: página de éxito
+
+```javascript
+app.get("/gracias/:pagoId", async (req, res) => {
+  const pago = await db.pagos.findOne({ id: req.params.pagoId });
+  
+  if (!pago || pago.estado_local !== "aprobado") {
+    return res.redirect("/");
+  }
+
+  return res.render("gracias", {
+    idPedido: pago.str_id_pago,
+    monto: pago.flt_total_con_iva,
+    cus: pago.str_codigo_transaccion,  // Útil para el usuario si necesita reclamar ante el banco
+    email: pago.str_email
+  });
+});
+```
+
+## Próximo paso
+
+<Card title="Verificar estado →" icon="arrow-right" href="/docs/zonapay/guias/verificar-estado">
+  Detalle de la lógica de verificación.
+</Card>

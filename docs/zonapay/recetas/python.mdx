@@ -1,0 +1,239 @@
+---
+title: "Python"
+description: "Cliente completo con requests, type hints y parser incluido."
+---
+
+## Dependencias
+
+```bash
+pip install requests
+```
+
+## Cliente completo
+
+Guarda como `zonapagos.py`:
+
+```python
+"""Cliente para el API de ZonaPagos."""
+from __future__ import annotations
+import os
+from dataclasses import dataclass
+from typing import Optional, List, Dict, Any
+import requests
+
+
+ZP_API_URL = os.environ.get("ZP_API_URL", "https://www.zonapagos.com/Apis_CicloPago/api")
+
+
+@dataclass
+class Cliente:
+    nombre: str
+    apellido: str
+    email: str
+    documento: str
+    telefono: str
+    tipo_id: str = "1"  # CC por defecto
+
+
+class ZonaPagosError(Exception):
+    """Error de negocio del API de ZonaPagos."""
+    def __init__(self, mensaje: str, int_codigo: int = 2):
+        super().__init__(mensaje)
+        self.int_codigo = int_codigo
+
+
+def iniciar_pago(
+    id_pago: str,
+    monto: float,
+    iva: float,
+    descripcion: str,
+    cliente: Cliente,
+    configuracion_extra: Optional[List[Dict[str, Any]]] = None,
+    adicionales_pago: Optional[List[Dict[str, Any]]] = None,
+    timeout: int = 30,
+) -> str:
+    """Inicia un pago en ZonaPagos. Retorna la URL del ciclo de pago."""
+    body = {
+        "InformacionPago": {
+            "flt_total_con_iva": monto,
+            "flt_valor_iva": iva,
+            "str_id_pago": id_pago,
+            "str_descripcion_pago": descripcion,
+            "str_email": cliente.email,
+            "str_id_cliente": cliente.documento,
+            "str_tipo_id": cliente.tipo_id,
+            "str_nombre_cliente": cliente.nombre,
+            "str_apellido_cliente": cliente.apellido,
+            "str_telefono_cliente": cliente.telefono,
+        },
+        "InformacionSeguridad": {
+            "int_id_comercio": int(os.environ["ZP_ID_COMERCIO"]),
+            "str_usuario": os.environ["ZP_USUARIO"],
+            "str_clave": os.environ["ZP_CLAVE"],
+            "int_modalidad": -1,
+        },
+        "AdicionalesPago": adicionales_pago or [],
+        "AdicionalesConfiguracion": [
+            {"int_codigo": 50, "str_valor": os.environ["ZP_COD_SERVICIO"]},
+            *(configuracion_extra or []),
+        ],
+    }
+
+    r = requests.post(f"{ZP_API_URL}/InicioPago", json=body, timeout=timeout)
+    r.raise_for_status()
+    data = r.json()
+
+    if data["int_codigo"] != 1:
+        raise ZonaPagosError(
+            data.get("str_descripcion_error", "Error desconocido"),
+            int_codigo=data["int_codigo"],
+        )
+
+    return data["str_url"]
+
+
+def verificar_pago(id_pago: str, int_no_pago: int = -1, timeout: int = 30) -> Dict[str, Any]:
+    """Consulta el estado de un pago. Retorna dict con cantidad_pagos y lista de pagos parseados."""
+    body = {
+        "int_id_comercio": int(os.environ["ZP_ID_COMERCIO"]),
+        "str_usr_comercio": os.environ["ZP_USUARIO"],
+        "str_pwd_Comercio": os.environ["ZP_CLAVE"],
+        "str_id_pago": id_pago,
+        "int_no_pago": int_no_pago,
+    }
+
+    r = requests.post(f"{ZP_API_URL}/VerificacionPago", json=body, timeout=timeout)
+    r.raise_for_status()
+    data = r.json()
+
+    if data["int_estado"] != 1:
+        raise ZonaPagosError(data.get("str_detalle", "API error"))
+
+    return {
+        "cantidad_pagos": data["int_cantidad_pagos"],
+        "pagos": parse_str_res_pago(data.get("str_res_pago", "")),
+    }
+
+
+# ═══════════════════════════════════════════
+# Parser de str_res_pago
+# ═══════════════════════════════════════════
+
+CAMPOS_BASE = [
+    "int_ped_numero", "int_n_pago", "int_pago_parcial",
+    "int_pago_terminado", "int_estado_pago",
+    "dbl_valor_pagado", "dbl_total_pago", "dbl_valor_iva_pagado",
+    "str_descripcion", "str_id_cliente",
+    "str_nombre", "str_apellido", "str_telefono", "str_email",
+    "str_campo1", "str_campo2", "str_campo3", "str_campo4", "str_campo5",
+    "dat_fecha", "int_id_forma_pago",
+]
+
+EXTRAS_POR_MEDIO = {
+    "29": ["str_ticketID", "int_codigo_servicio", "int_codigo_banco",
+           "str_nombre_banco", "str_codigo_transaccion", "int_ciclo_transaccion"],
+    "32": ["str_ticketID", "int_numero_tarjeta", "str_franquicia",
+           "int_cod_aprobacion", "int_num_recibido"],
+    "47": ["str_ticketID", "int_codigo_banco"],
+    "48": ["str_ticketID"],
+    "51": ["str_ticketID", "int_numero_tarjeta", "str_franquicia",
+           "int_cod_aprobacion", "int_num_recibido"],
+}
+
+
+def parse_str_res_pago(raw: str) -> List[Dict[str, Any]]:
+    """Parsea el campo str_res_pago en una lista de pagos."""
+    if not raw or not isinstance(raw, str) or raw.strip() == "":
+        return []
+
+    pagos = []
+    for pago_raw in (p.strip() for p in raw.split("|;|")):
+        if not pago_raw:
+            continue
+        partes = [x.strip() for x in pago_raw.split("|")]
+        pago: Dict[str, Any] = {
+            campo: (partes[i] if i < len(partes) else "")
+            for i, campo in enumerate(CAMPOS_BASE)
+        }
+
+        medio = str(pago.get("int_id_forma_pago", ""))
+        for i, campo in enumerate(EXTRAS_POR_MEDIO.get(medio, [])):
+            idx = len(CAMPOS_BASE) + i
+            pago[campo] = partes[idx] if idx < len(partes) else ""
+
+        pagos.append(pago)
+
+    return pagos
+
+
+# ═══════════════════════════════════════════
+# Constantes de estados
+# ═══════════════════════════════════════════
+
+APROBADO = 1
+NO_INICIADO = 888
+PENDIENTE_FINALIZAR = 999
+RECHAZADO = 1000
+ERROR_ACH = 1001
+RECHAZADO_CR = 4000
+PENDIENTE_CR = 4001
+ERROR_CR = 4003
+
+ESTADOS_PENDIENTES = {NO_INICIADO, PENDIENTE_FINALIZAR, PENDIENTE_CR}
+ESTADOS_RECHAZADOS = {RECHAZADO, ERROR_ACH, RECHAZADO_CR, ERROR_CR}
+
+
+def es_aprobado(estado: Any) -> bool:
+    return int(estado) == APROBADO
+
+def es_pendiente(estado: Any) -> bool:
+    return int(estado) in ESTADOS_PENDIENTES
+
+def es_rechazado(estado: Any) -> bool:
+    return int(estado) in ESTADOS_RECHAZADOS
+```
+
+## Uso en FastAPI
+
+```python
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
+from zonapagos import iniciar_pago, verificar_pago, es_aprobado, Cliente
+
+app = FastAPI()
+
+@app.post("/checkout")
+async def checkout(datos: dict):
+    cliente = Cliente(**datos["cliente"])
+    id_pago = f"ORDEN-{int(datetime.now().timestamp())}"
+
+    url = iniciar_pago(
+        id_pago=id_pago,
+        monto=datos["monto"],
+        iva=datos["iva"],
+        descripcion=datos["descripcion"],
+        cliente=cliente,
+        configuracion_extra=[
+            {"int_codigo": 104, "str_valor": f"{APP_URL}/retorno"}
+        ]
+    )
+    return RedirectResponse(url, status_code=302)
+
+
+@app.get("/retorno")
+async def retorno(id_comercio: int, id_pago: str):
+    resultado = verificar_pago(id_pago)
+    if not resultado["pagos"]:
+        return RedirectResponse("/pendiente")
+    
+    ultimo = resultado["pagos"][-1]
+    if es_aprobado(ultimo["int_estado_pago"]):
+        return RedirectResponse(f"/gracias?id={id_pago}")
+    return RedirectResponse(f"/pendiente?id={id_pago}")
+```
+
+## Ver también
+
+<Card title="Implementar sonda" icon="satellite-dish" href="/docs/zonapay/guias/implementar-sonda">
+  Job programado (usable con cron, APScheduler, Celery beat).
+</Card>

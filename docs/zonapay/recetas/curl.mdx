@@ -1,0 +1,136 @@
+---
+title: "cURL"
+description: "Ejemplos completos con cURL para InicioPago, VerificacionPago y manejo de respuestas."
+---
+
+<Tip>
+cURL es la forma más directa de probar el API sin escribir código. Ideal para debugging y scripts rápidos.
+</Tip>
+
+## Variables de entorno
+
+```bash
+export ZP_API_URL="https://www.zonapagos.com/Apis_CicloPago/api"
+export ZP_ID_COMERCIO="31416"
+export ZP_USUARIO="UsuarioDef"
+export ZP_CLAVE='PagosN3*)'
+export ZP_COD_SERVICIO="2701"
+```
+
+<Warning>
+Nota las **comillas simples** en la clave (`'PagosN3*)'`). Bash interpretaría el `)` sin ellas.
+</Warning>
+
+## InicioPago — PSE
+
+```bash
+curl -X POST "$ZP_API_URL/InicioPago" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "InformacionPago": {
+      "flt_total_con_iva": 50000,
+      "flt_valor_iva": 7983,
+      "str_id_pago": "ORDEN-TEST-001",
+      "str_descripcion_pago": "Pago de prueba",
+      "str_email": "test@ejemplo.com",
+      "str_id_cliente": "1020304050",
+      "str_tipo_id": "1",
+      "str_nombre_cliente": "Juan",
+      "str_apellido_cliente": "Perez",
+      "str_telefono_cliente": "3001234567"
+    },
+    "InformacionSeguridad": {
+      "int_id_comercio": '"$ZP_ID_COMERCIO"',
+      "str_usuario": "'"$ZP_USUARIO"'",
+      "str_clave": "'"$ZP_CLAVE"'",
+      "int_modalidad": -1
+    },
+    "AdicionalesPago": [],
+    "AdicionalesConfiguracion": [
+      {"int_codigo": 50, "str_valor": "'"$ZP_COD_SERVICIO"'"}
+    ]
+  }' | jq .
+```
+
+## InicioPago — con más opciones
+
+```bash
+curl -X POST "$ZP_API_URL/InicioPago" \
+  -H "Content-Type: application/json" \
+  -d @body.json
+```
+
+Donde `body.json` es un archivo separado:
+
+```json
+{
+  "InformacionPago": { ... },
+  "InformacionSeguridad": { ... },
+  "AdicionalesPago": [],
+  "AdicionalesConfiguracion": [
+    { "int_codigo": 50,  "str_valor": "2701" },
+    { "int_codigo": 104, "str_valor": "https://micomercio.com/retorno" },
+    { "int_codigo": 109, "str_valor": "1" }
+  ]
+}
+```
+
+## VerificacionPago
+
+```bash
+curl -X POST "$ZP_API_URL/VerificacionPago" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "int_id_comercio": '"$ZP_ID_COMERCIO"',
+    "str_usr_comercio": "'"$ZP_USUARIO"'",
+    "str_pwd_Comercio": "'"$ZP_CLAVE"'",
+    "str_id_pago": "ORDEN-TEST-001",
+    "int_no_pago": -1
+  }' | jq .
+```
+
+## Script bash con manejo de respuesta
+
+```bash
+#!/bin/bash
+set -e
+
+RESPONSE=$(curl -s -X POST "$ZP_API_URL/InicioPago" \
+  -H "Content-Type: application/json" \
+  -d @body.json)
+
+INT_CODIGO=$(echo "$RESPONSE" | jq -r '.int_codigo')
+
+if [ "$INT_CODIGO" = "1" ]; then
+    URL=$(echo "$RESPONSE" | jq -r '.str_url')
+    echo "✅ Éxito. Redirigir a: $URL"
+else
+    ERROR=$(echo "$RESPONSE" | jq -r '.str_descripcion_error')
+    echo "❌ Error: $ERROR" >&2
+    exit 1
+fi
+```
+
+## Ver headers de respuesta (debugging)
+
+```bash
+curl -v -X POST "$ZP_API_URL/InicioPago" \
+  -H "Content-Type: application/json" \
+  -d @body.json 2>&1 | grep -E "^< |^\* "
+```
+
+Útil para ver:
+- Headers del servidor (ver si expone `X-AspNet-Version`).
+- Tiempos de conexión TLS.
+- Códigos HTTP intermedios.
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="Postman" icon="rocket" href="/docs/zonapay/recetas/postman">
+    Colección lista con todos los requests.
+  </Card>
+  <Card title="Node.js" icon="node-js" href="/docs/zonapay/recetas/nodejs">
+    Equivalente en JavaScript.
+  </Card>
+</CardGroup>

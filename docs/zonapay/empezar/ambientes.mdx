@@ -1,0 +1,81 @@
+---
+title: "Ambientes y credenciales"
+description: "URLs de producción, acceso a pruebas y cómo obtener credenciales."
+---
+
+## Ambientes
+
+| Ambiente | URL base del API | Uso |
+|----------|-----------------|-----|
+| **Producción** | `https://www.zonapagos.com/Apis_CicloPago/api` | Transacciones reales. |
+| **Formulario web dummie** | `https://www.zonapagos.com/dummie_ciclopago/FormulariosWeb/InicioPago_Dummie.aspx` | Pruebas manuales del flujo visual. |
+| **API REST de pruebas** | Se habilita por solicitud | Requiere credenciales de preproducción. |
+
+## Endpoints principales
+
+<CardGroup cols={2}>
+  <Card title="InicioPago" icon="play" href="/docs/zonapay/api/endpoints/inicio-pago">
+    `POST /Apis_CicloPago/api/InicioPago`
+  </Card>
+  <Card title="VerificacionPago" icon="magnifying-glass" href="/docs/zonapay/api/endpoints/verificacion-pago">
+    `POST /Apis_CicloPago/api/VerificacionPago`
+  </Card>
+</CardGroup>
+
+Ambos usan HTTPS y reciben / devuelven `application/json`.
+
+## Credenciales necesarias
+
+Para operar con Zonapay necesitas:
+
+<ParamField path="int_id_comercio" type="integer" required>
+Identificador único del comercio, entero de hasta 7 dígitos.
+</ParamField>
+
+<ParamField path="str_usuario" type="string" required>
+Usuario de integración. Se usa como `str_usuario` en `InicioPago` y como `str_usr_comercio` en `VerificacionPago`.
+</ParamField>
+
+<ParamField path="str_clave" type="string" required>
+Clave de integración. Se usa como `str_clave` en `InicioPago` y como `str_pwd_Comercio` en `VerificacionPago`.
+
+Puede cambiarse desde el portal administrativo.
+</ParamField>
+
+<ParamField path="Código de servicio PSE" type="integer" required>
+Obligatorio si aceptas PSE. Se envía en `AdicionalesConfiguracion` con `int_codigo: 50`.
+</ParamField>
+
+## Cómo obtener credenciales
+
+<Steps>
+  <Step title="Contacto comercial">
+    Escribe a [soporte@zonavirtual.com.co](mailto:soporte@zonavirtual.com.co) o usa el [formulario de contacto](https://www.zonapagos.com/contacto).
+  </Step>
+  <Step title="Documentación">
+    Zonapagos es entidad vigilada. Prepara RUT, cámara de comercio, estados financieros y documentación del representante legal.
+  </Step>
+  <Step title="Definición del modelo">
+    Se acuerda operación en Gateway o Agregador, medios de pago habilitados y tarifas.
+  </Step>
+  <Step title="Credenciales de preproducción">
+    Recibes un `int_id_comercio` de pruebas para validar la integración.
+  </Step>
+  <Step title="Certificación y producción">
+    Tras certificar (especialmente PSE), se habilita producción.
+  </Step>
+</Steps>
+
+## Certificación PSE
+
+Si tu integración va a procesar PSE, antes de salir a producción debes certificar el comercio ante ACH Colombia. Los requisitos se detallan en [Certificación PSE](/docs/zonapay/guias/certificacion-pse).
+
+## Pruebas antes de producción
+
+El formulario web dummie sirve para validar la experiencia visual. Para probar el **API REST** directamente, solicita credenciales de preproducción al equipo de soporte. Ver [Sandbox y pruebas](/docs/zonapay/soporte/sandbox).
+
+## Próximo paso
+
+<Card title="Quickstart →" icon="rocket" href="/docs/zonapay/empezar/quickstart">
+  Tu primer request.
+</Card>

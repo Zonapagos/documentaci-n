@@ -1,0 +1,149 @@
+---
+title: "Postman"
+description: "Colección oficial con todos los requests listos para importar y probar."
+---
+
+## Importar la colección
+
+<Steps>
+  <Step title="Descargar los archivos">
+    <CardGroup cols={2}>
+      <Card title="Colección" icon="download" href="/files/ZonaPagos_API_v6.0_TestSuite.postman_collection.json">
+        32 requests organizados en 5 carpetas.
+      </Card>
+      <Card title="Environment" icon="download" href="/files/ZonaPagos-Sandbox.postman_environment.json">
+        Variables preconfiguradas.
+      </Card>
+    </CardGroup>
+  </Step>
+  <Step title="Importar en Postman">
+    En Postman: **File → Import** → arrastra ambos archivos.
+  </Step>
+  <Step title="Seleccionar el environment">
+    En el selector de environment (arriba a la derecha) elige `ZonaPagos-Sandbox`.
+  </Step>
+  <Step title="Llenar tus credenciales">
+    Edita las variables `id_comercio`, `usuario`, `clave` y `codigo_servicio` con tus datos reales.
+  </Step>
+</Steps>
+
+## Estructura de la colección
+
+```
+ZonaPagos API v6.0 — Test Suite  (32 requests)
+├── 01 — Happy Path
+│   ├── POST InicioPago — PSE básico
+│   ├── POST InicioPago — Tarjeta de Crédito básico
+│   ├── POST InicioPago — Completo con todos los opcionales
+│   └── GET VerificacionPago — consulta inmediata
+├── 02 — PSE Específico
+│   ├── POST InicioPago — PSE pago fraccionado
+│   ├── POST InicioPago — PSE cobro porcentual (1.95%)
+│   ├── POST InicioPago — PSE cobro fijo ($1200)
+│   └── POST InicioPago — PSE URL retorno custom
+├── 03 — Tarjeta de Crédito Específico
+│   ├── POST InicioPago — TC desactivar nombre
+│   ├── POST InicioPago — TC cobro dólares
+│   ├── POST InicioPago — TC recurrencia mensual
+│   └── POST InicioPago — TC pagos mixtos habilitados
+├── 04 — Casos de Error (Validaciones)
+│   ├── Sin flt_total_con_iva
+│   ├── Sin str_id_pago
+│   ├── Credenciales inválidas
+│   ├── id_comercio inexistente
+│   ├── str_id_pago con ceros al inicio
+│   ├── str_id_pago > 30 chars
+│   ├── flt_total negativo
+│   ├── flt_total = 0
+│   ├── IVA > Total
+│   ├── str_tipo_id inválido
+│   ├── int_modalidad = 1 (test contradicción)
+│   ├── Sin código adicional 50
+│   └── JSON mal formado
+└── 05 — Verificación y Sonda
+    ├── GET VerificacionPago — no iniciada (888)
+    ├── GET VerificacionPago — int_no_pago=-1
+    ├── GET VerificacionPago — int_no_pago específico
+    ├── GET VerificacionPago — ID inexistente
+    ├── GET VerificacionPago — credenciales inválidas
+    ├── MANUAL: verificar estado 999
+    └── MANUAL: verificar estado 4001
+```
+
+## Variables del environment
+
+| Variable | Valor por defecto | Descripción |
+|----------|------------------|-------------|
+| `base_url_prod` | `https://www.zonapagos.com/Apis_CicloPago/api` | URL producción |
+| `base_url_sandbox` | `https://www.zonapagos.com/dummie_ciclopago/api` | ⚠️ No disponible públicamente |
+| `id_comercio` | — | Tu `int_id_comercio` |
+| `usuario` | — | Tu usuario técnico |
+| `clave` | — | Tu clave (tipo `secret`) |
+| `codigo_servicio` | — | Código de servicio PSE |
+| `last_id_pago` | (auto-generado) | Se setea en pre-request script |
+| `last_rut_url` | (auto-generado) | Se extrae de InicioPago exitoso |
+| `last_no_pago` | (auto-generado) | Se extrae de VerificacionPago |
+
+## Pre-request script global
+
+Cada request de `InicioPago` genera automáticamente un `str_id_pago` único:
+
+```javascript
+if (!pm.variables.get("id_pago_override")) {
+    const ts = Date.now().toString().slice(-10);
+    pm.environment.set("last_id_pago", "TEST" + ts);
+}
+```
+
+## Tests automatizados
+
+Cada request incluye validaciones básicas:
+
+```javascript
+pm.test("Status code is 200", () => pm.response.to.have.status(200));
+
+pm.test("int_codigo === 1", () => {
+    const json = pm.response.json();
+    pm.expect(json.int_codigo).to.eql(1);
+});
+
+pm.test("str_url contiene rut válido", () => {
+    const json = pm.response.json();
+    pm.expect(json.str_url).to.match(/rut=[A-F0-9]{64}/);
+    pm.environment.set("last_rut_url", json.str_url);
+});
+
+pm.test("Tiempo < 3000ms", () => {
+    pm.expect(pm.response.responseTime).to.be.below(3000);
+});
+```
+
+## Correr toda la colección
+
+1. Click derecho sobre la colección → **Run collection**.
+2. Selecciona qué carpetas correr.
+3. **Run** — Postman ejecuta todos los requests y muestra un reporte de pass/fail.
+
+## Exportar a CI/CD con Newman
+
+```bash
+npm install -g newman
+
+newman run ZonaPagos_API_v6.0_TestSuite.postman_collection.json \
+  -e ZonaPagos-Sandbox.postman_environment.json \
+  --reporters cli,json \
+  --reporter-json-export resultados.json
+```
+
+Útil para integrar las pruebas en tu pipeline de CI.
+
+## Ver también
+
+<CardGroup cols={2}>
+  <Card title="cURL" icon="terminal" href="/docs/zonapay/recetas/curl">
+    Versión sin Postman.
+  </Card>
+  <Card title="Ambientes" icon="server" href="/docs/zonapay/empezar/ambientes">
+    URLs y credenciales.
+  </Card>
+</CardGroup>

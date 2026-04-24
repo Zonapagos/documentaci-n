@@ -1,0 +1,145 @@
+---
+title: "Convenciones del API"
+description: "Tipos de dato, formatos, nomenclatura y reglas que aplican a todos los endpoints."
+---
+
+## Nomenclatura de campos
+
+ZonaPagos usa **húngaro ligero** — los nombres de campos incluyen un prefijo que indica su tipo:
+
+| Prefijo | Tipo | Ejemplo |
+|---------|------|---------|
+| `int_` | Entero | `int_id_comercio`, `int_estado_pago` |
+| `str_` | Cadena | `str_id_pago`, `str_descripcion` |
+| `flt_` | Decimal | `flt_total_con_iva`, `flt_valor_iva` |
+| `dbl_` | Decimal (en responses) | `dbl_valor_pagado`, `dbl_total_pago` |
+| `dat_` | Fecha/hora | `dat_fecha` |
+
+<Note>
+Aunque `flt` y `dbl` son ambos decimales, históricamente `flt_` aparece en requests y `dbl_` aparece en responses. Ambos aceptan los mismos valores.
+</Note>
+
+## Formato de valores numéricos
+
+| Tipo | Formato | Ejemplo |
+|------|---------|---------|
+| Enteros | Sin separadores, sin decimales. | `50000` |
+| Decimales | Punto como separador decimal, máximo 2 decimales. | `83000.50`, `7983.00` |
+| Moneda | En pesos colombianos por defecto (COP). | `50000` = $50.000 COP |
+| Porcentajes en `AdicionalesConfiguracion` | **Formato propietario de 4 dígitos**. Los 2 últimos son decimales. Ver abajo. | `0195` = 1.95% |
+
+### El formato de porcentaje
+
+Algunos parámetros de cobro por transacción (`50002`, `50102`) esperan un porcentaje en un formato no estándar:
+
+<Frame caption="Convención del formato de 4 dígitos">
+```
+"0195" → 1.95%
+"0200" → 2.00%
+"0050" → 0.50%
+"1000" → 10.00%
+"2500" → 25.00%
+```
+</Frame>
+
+<Warning>
+Esta convención es propietaria y propensa a errores. Envía siempre el valor como **string** (no como número), con ceros a la izquierda para completar 4 dígitos. Ver ejemplos completos en [Cobro por transacción](/docs/zonapay/api/referencia/cobro-transaccion).
+</Warning>
+
+## Formato de fechas
+
+Las fechas en `VerificacionPago` (campo `dat_fecha` dentro de `str_res_pago`) vienen como:
+
+```
+dd/mm/yyyy hh:mm:ss
+```
+
+Ejemplo: `21/04/2026 14:32:10` (hora Colombia, UTC-5).
+
+## Formato de `str_res_pago`
+
+El campo `str_res_pago` del response de `VerificacionPago` no es JSON — es texto plano con separadores:
+
+```
+campo1|campo2|campo3|...|campoN|;|campo1|campo2|...;|
+```
+
+- Pipe simple `|` separa campos dentro de un pago.
+- Pipe-punto-y-coma-pipe `|;|` separa pagos distintos cuando hay varios intentos.
+- El orden de los campos es **fijo** y depende del medio de pago.
+
+Ver [Parsear str_res_pago](/docs/zonapay/api/formatos/parsear-str-res-pago) con código listo para copiar.
+
+## Campos opcionales
+
+Cuando un campo es opcional, puedes:
+
+- **Omitirlo** del JSON (recomendado).
+- Enviar `null`.
+- Enviar un string vacío `""` (para campos de tipo string).
+
+<Tip>
+Los `str_opcional1` a `str_opcional5` de `InformacionPago` te permiten enviar metadata arbitraria que luego recibes de vuelta en `VerificacionPago`. Úsalos para trazabilidad: ID de pedido interno, campaña, canal de venta, etc.
+</Tip>
+
+## Límites de tamaño
+
+<ParamField path="str_id_pago" type="string" required>
+Máximo 30 caracteres. No puede tener ceros a la izquierda (serían eliminados).
+</ParamField>
+
+<ParamField path="str_descripcion_pago" type="string" required>
+Máximo 70 caracteres.
+</ParamField>
+
+<ParamField path="str_email" type="string">
+Máximo 70 caracteres.
+</ParamField>
+
+<ParamField path="str_id_cliente" type="string">
+Máximo 30 caracteres.
+</ParamField>
+
+<ParamField path="str_nombre_cliente / str_apellido_cliente / str_telefono_cliente" type="string">
+Máximo 50 caracteres cada uno.
+</ParamField>
+
+<ParamField path="str_opcional1 a str_opcional5" type="string">
+Máximo 70 caracteres cada uno.
+</ParamField>
+
+<ParamField path="str_usuario / str_usr_comercio" type="string">
+Máximo 40 caracteres.
+</ParamField>
+
+<ParamField path="str_clave / str_pwd_Comercio" type="string">
+Máximo 50 caracteres.
+</ParamField>
+
+<ParamField path="str_url (en response)" type="string">
+Máximo 126 caracteres.
+</ParamField>
+
+## Reglas de negocio
+
+### `str_id_pago` único por transacción
+
+Cada intento de pago debe usar un `str_id_pago` único dentro de tu comercio. Si reintenta un pago rechazado, usa un nuevo `str_id_pago` (puedes agregarle un sufijo: `ORDEN-001-R1`, `ORDEN-001-R2`).
+
+### `int_modalidad` — conocido problema de documentación
+
+<Warning>
+El instructivo oficial v6.0 tiene una contradicción: el texto dice que `int_modalidad` debe ser **siempre `-1`**, pero el ejemplo JSON oficial envía `1`. Esta documentación refleja la inconsistencia hasta que TI confirme el valor correcto.
+
+**Recomendación provisional:** usa `-1` siguiendo el texto normativo.
+</Warning>
+
+### Callback del comercio
+
+La URL de retorno se configura **una sola vez** al activar el comercio, o se envía dinámicamente en cada pago con el código `104` de `AdicionalesConfiguracion`. Si envías `104`, ese valor prevalece.
+
+## Próximo paso
+
+<Card title="Endpoint /InicioPago →" icon="play" href="/docs/zonapay/api/endpoints/inicio-pago">
+  La referencia del primer endpoint que llamarás.
+</Card>

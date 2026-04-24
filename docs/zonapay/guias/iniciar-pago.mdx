@@ -1,0 +1,179 @@
+---
+title: "Iniciar un pago"
+description: "Paso 1 del flujo: crear la transacción y obtener la URL del ciclo de pago."
+---
+
+## Pre-requisitos
+
+<Check>Tienes credenciales de producción (`int_id_comercio`, usuario, clave).</Check>
+<Check>Configuraste tu URL de retorno (estática en el comercio, o vas a enviarla con el código `104`).</Check>
+<Check>Si aceptas PSE, tienes tu código de servicio.</Check>
+
+## Armar el request
+
+El body es un objeto con cuatro propiedades:
+
+```json
+{
+  "InformacionPago": { ... },
+  "InformacionSeguridad": { ... },
+  "AdicionalesPago": [],
+  "AdicionalesConfiguracion": [ ... ]
+}
+```
+
+### Campos obligatorios mínimos
+
+<ParamField path="InformacionPago.flt_total_con_iva" type="number" required>
+Total a cobrar con IVA incluido.
+</ParamField>
+
+<ParamField path="InformacionPago.str_id_pago" type="string" required>
+Tu identificador único del pago. Máximo 30 caracteres, sin ceros a la izquierda.
+</ParamField>
+
+<ParamField path="InformacionPago.str_descripcion_pago" type="string" required>
+Concepto del pago (el usuario lo ve en el formulario).
+</ParamField>
+
+<ParamField path="InformacionSeguridad.int_id_comercio + str_usuario + str_clave" type="credenciales" required>
+Tus credenciales.
+</ParamField>
+
+<ParamField path="InformacionSeguridad.int_modalidad" type="integer" required>
+Valor fijo (`-1` según texto normativo del instructivo oficial).
+</ParamField>
+
+<ParamField path="AdicionalesConfiguracion[código 50]" type="string" required>
+Solo si aceptas PSE. Tu código de servicio PSE.
+</ParamField>
+
+### Obligatorios adicionales para certificación PSE
+
+<Check>`InformacionPago.str_id_cliente` (documento del pagador)</Check>
+<Check>`InformacionPago.str_tipo_id` (tipo de documento)</Check>
+<Check>`InformacionPago.flt_valor_iva` (IVA de la transacción)</Check>
+
+## Ejemplo completo
+
+<CodeGroup>
+
+```javascript Node.js
+import axios from "axios";
+
+async function iniciarPago({ idPedido, monto, iva, cliente }) {
+  const body = {
+    InformacionPago: {
+      flt_total_con_iva: monto,
+      flt_valor_iva: iva,
+      str_id_pago: idPedido,
+      str_descripcion_pago: `Pedido ${idPedido}`,
+      str_email: cliente.email,
+      str_id_cliente: cliente.documento,
+      str_tipo_id: "1",  // CC
+      str_nombre_cliente: cliente.nombre,
+      str_apellido_cliente: cliente.apellido,
+      str_telefono_cliente: cliente.telefono,
+      str_opcional1: `canal:${cliente.canal}`
+    },
+    InformacionSeguridad: {
+      int_id_comercio: Number(process.env.ZP_ID_COMERCIO),
+      str_usuario: process.env.ZP_USUARIO,
+      str_clave: process.env.ZP_CLAVE,
+      int_modalidad: -1
+    },
+    AdicionalesPago: [],
+    AdicionalesConfiguracion: [
+      { int_codigo: 50,  str_valor: process.env.ZP_COD_SERVICIO },
+      { int_codigo: 104, str_valor: `${process.env.APP_URL}/pago/retorno` }
+    ]
+  };
+
+  const { data } = await axios.post(
+    `${process.env.ZP_API_URL}/InicioPago`,
+    body,
+    { 
+      headers: { "Content-Type": "application/json" },
+      timeout: 30000
+    }
+  );
+
+  if (data.int_codigo !== 1) {
+    throw new Error(`Error ZP: ${data.str_descripcion_error}`);
+  }
+
+  return data.str_url;
+}
+```
+
+```python Python
+import os, requests
+
+def iniciar_pago(id_pedido: str, monto: float, iva: float, cliente: dict) -> str:
+    body = {
+        "InformacionPago": {
+            "flt_total_con_iva": monto,
+            "flt_valor_iva": iva,
+            "str_id_pago": id_pedido,
+            "str_descripcion_pago": f"Pedido {id_pedido}",
+            "str_email": cliente["email"],
+            "str_id_cliente": cliente["documento"],
+            "str_tipo_id": "1",
+            "str_nombre_cliente": cliente["nombre"],
+            "str_apellido_cliente": cliente["apellido"],
+            "str_telefono_cliente": cliente["telefono"],
+            "str_opcional1": f"canal:{cliente.get('canal', 'web')}"
+        },
+        "InformacionSeguridad": {
+            "int_id_comercio": int(os.environ["ZP_ID_COMERCIO"]),
+            "str_usuario": os.environ["ZP_USUARIO"],
+            "str_clave": os.environ["ZP_CLAVE"],
+            "int_modalidad": -1
+        },
+        "AdicionalesPago": [],
+        "AdicionalesConfiguracion": [
+            {"int_codigo": 50, "str_valor": os.environ["ZP_COD_SERVICIO"]},
+            {"int_codigo": 104, "str_valor": f"{os.environ['APP_URL']}/pago/retorno"}
+        ]
+    }
+
+    r = requests.post(f"{os.environ['ZP_API_URL']}/InicioPago", json=body, timeout=30)
+    data = r.json()
+    if data["int_codigo"] != 1:
+        raise Exception(f"Error ZP: {data['str_descripcion_error']}")
+    return data["str_url"]
+```
+
+</CodeGroup>
+
+## Al recibir la respuesta
+
+<Steps>
+  <Step title="Valida int_codigo">
+    Si no es `1`, loguea el error y muestra al usuario una pantalla amigable (ej. "Hubo un problema, inténtalo de nuevo").
+  </Step>
+  <Step title="Persiste el pago en tu BD">
+    Guarda `str_id_pago`, `str_url`, `flt_total_con_iva`, timestamp, estado = `pendiente`. Necesitarás estos datos para la sonda y el callback.
+  </Step>
+  <Step title="Redirige al usuario">
+    Devuelve un `302 Redirect` hacia `str_url`, o abre en nueva pestaña si tu UX lo prefiere.
+  </Step>
+  <Step title="No modifiques str_url">
+    El parámetro `rut` es un token criptográfico. Cualquier modificación invalida el pago.
+  </Step>
+</Steps>
+
+## Errores comunes
+
+| Error | Solución |
+|-------|----------|
+| `int_codigo: 2` con "Object reference..." | Revisa credenciales y que el body tenga los 4 objetos top-level. |
+| `str_id_pago` rechazado | Tiene ceros a la izquierda o supera 30 caracteres. |
+| "Código 50 requerido" | Tu comercio tiene PSE habilitado y debes enviar el código `50` con tu código de servicio. |
+| HTTP 415 | Falta header `Content-Type: application/json`. |
+
+## Próximo paso
+
+<Card title="Redirigir al usuario →" icon="arrow-right" href="/docs/zonapay/guias/redirigir-usuario">
+  Cómo redirigir correctamente y qué esperar.
+</Card>

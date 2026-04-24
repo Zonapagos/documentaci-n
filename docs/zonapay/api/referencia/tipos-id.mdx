@@ -1,0 +1,76 @@
+---
+title: "Tipos de identificación"
+description: "Valores válidos para str_tipo_id."
+---
+
+El campo `str_tipo_id` de `InformacionPago` acepta un **código numérico enviado como string**. Determina qué tipo de documento identifica al cliente.
+
+## Tabla de valores
+
+| Valor | Sigla | Tipo | Uso |
+|-------|-------|------|-----|
+| `"0"` | — | No usa / Tipo no identificado | Cuando no aplica o no se conoce. |
+| `"1"` | **CC** | Cédula de Ciudadanía | Colombianos mayores de 18. Más común en Colombia. |
+| `"2"` | **CE** | Cédula de Extranjería | Extranjeros residentes. |
+| `"3"` | **NIT** | Número de Identificación Tributaria | Empresas. |
+| `"4"` | **NUIP** | Número Único de Identificación Personal | Menores de 18 registrados. |
+| `"5"` | **TI** | Tarjeta de Identidad | Menores de 18. |
+| `"6"` | **PP** | Pasaporte | Extranjeros o colombianos en el exterior. |
+| `"7"` | **IDC** | Identificador Único del Cliente | Sistemas internos. |
+| `"8"` | **CEL** | Celular | Cuando el identificador es un número móvil. |
+| `"9"` | **RC** | Registro Civil de Nacimiento | Menores de 7 años. |
+| `"10"` | **DE** | Documento de Identificación Extranjero | Documentos emitidos fuera de Colombia. |
+| `"11"` | — | Otro no tipificado | Cualquier otro caso. |
+
+<Warning>
+**Formato:** los valores se envían como **string**, no como integer. Correcto: `"1"`. Incorrecto: `1`.
+</Warning>
+
+## Ejemplos
+
+### Pago con cédula colombiana
+
+```json
+{
+  "str_id_cliente": "1020304050",
+  "str_tipo_id": "1"
+}
+```
+
+### Pago de empresa con NIT
+
+```json
+{
+  "str_id_cliente": "900123456",
+  "str_tipo_id": "3"
+}
+```
+
+### Pago con pasaporte
+
+```json
+{
+  "str_id_cliente": "AC12345",
+  "str_tipo_id": "6"
+}
+```
+
+## Reglas de validación
+
+<Check>
+**Obligatorio para certificación PSE.** Si aceptas PSE, `str_id_cliente` y `str_tipo_id` deben ir siempre.
+</Check>
+
+<Check>
+**Opcional para otros medios.** Si solo aceptas TC, puedes omitirlo.
+</Check>
+
+<Check>
+**Coherencia con `str_id_cliente`.** No envíes `str_tipo_id: "1"` (CC) con un ID que no cumple el formato de cédula colombiana.
+</Check>
+
+## Ver también
+
+<Card title="Objeto InformacionPago" icon="receipt" href="/docs/zonapay/api/objetos/informacion-pago">
+  Donde se usan estos campos.
+</Card>
