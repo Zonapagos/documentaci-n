@@ -74,9 +74,11 @@ const todosAprobados = pagos.every(p => Number(p.int_estado_pago) === 1);
 
 ## Lógica de aprobación
 
+{/*
 <Warning>
 El pago se considera completamente aprobado **solo cuando todos los sub-pagos están aprobados**. Si uno falla, los demás pueden requerir reversa manual — coordina con soporte.
 </Warning>
+*/}
 
 ```javascript
 function estadoPagoMixto(pagos) {
