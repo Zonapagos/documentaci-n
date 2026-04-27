@@ -27,14 +27,15 @@ Y permite división en varios medios:
 ### Ejemplo completo
 
 ```json
-"AdicionalesConfiguracion": [
-  { "int_codigo": 50,  "str_valor": "tu_codigo_servicio" },
-  { "int_codigo": 109, "str_valor": "1" },
-  { "int_codigo": 100, "str_valor": "1" },
-  { "int_codigo": 105, "str_valor": "50000" },
-  { "int_codigo": 106, "str_valor": "3" }
-]
-```
+{
+  "AdicionalesConfiguracion": [
+    { "int_codigo": 50,  "str_valor": "tu_codigo_servicio" },
+    { "int_codigo": 109, "str_valor": "1" },
+    { "int_codigo": 100, "str_valor": "1" },
+    { "int_codigo": 105, "str_valor": "50000" },
+    { "int_codigo": 106, "str_valor": "3" }
+  ]
+}
 
 Permite al usuario dividir su pago en hasta 3 fracciones, mínimo $50.000 por fracción.
 
@@ -74,11 +75,9 @@ const todosAprobados = pagos.every(p => Number(p.int_estado_pago) === 1);
 
 ## Lógica de aprobación
 
-{/*
 <Warning>
 El pago se considera completamente aprobado **solo cuando todos los sub-pagos están aprobados**. Si uno falla, los demás pueden requerir reversa manual — coordina con soporte.
 </Warning>
-*/}
 
 ```javascript
 function estadoPagoMixto(pagos) {
@@ -110,7 +109,6 @@ No recomendados para:
 
 ## Ver también
 
-{/*
 <CardGroup cols={2}>
 <Card
     title="AdicionalesConfiguracion"
@@ -127,4 +125,3 @@ No recomendados para:
     Cómo leer múltiples sub-pagos.
 </Card>
 </CardGroup>
-*/}
