@@ -109,8 +109,11 @@ async function withRetry(fn, maxIntentos = 3) {
 
 ## Qué mostrar al usuario
 
-<Check>**Nunca muestres `str_descripcion_error` crudo al usuario.** Puede contener nombres de variables internas o info sensible.</Check>
-<Check>**Mapea errores técnicos a mensajes de negocio:**
+<Check>
+**Nunca muestres `str_descripcion_error` crudo al usuario.**  
+Puede contener nombres de variables internas o información sensible.
+
+**Mapea errores técnicos a mensajes de negocio:**
 
 ```javascript
 function mensajeUsuario(err) {
@@ -119,8 +122,7 @@ function mensajeUsuario(err) {
   if (err instanceof ErrorNegocio) return "No pudimos procesar el pago. Verifica tus datos e inténtalo de nuevo.";
   return "Algo salió mal. Si el problema persiste contáctanos.";
 }
-```
-</Check>
+</Check> ```
 
 ## Alertas operativas
 
