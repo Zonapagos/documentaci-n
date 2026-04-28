@@ -62,3 +62,7 @@ Fraccionar en varias cuentas PSE:
 | `106`  | Número máximo de fracciones |
 | `112`  | Valor por defecto de la primera fracción |
 
+## Qué recibes en VerificacionPago
+
+`int_cantidad_pagos` será mayor a 1. Cada elemento del array parseado es un **sub-pago** con su propio `int_n_pago`, `int_id_forma_pago` y `dbl_valor_pagado`.
+
