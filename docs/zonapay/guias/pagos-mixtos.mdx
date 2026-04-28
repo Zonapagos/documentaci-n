@@ -7,3 +7,16 @@ Zonapay permite al usuario dividir el total de una transacción entre:
 
 - **Medios distintos** (ej. PSE + TC) - pagos **mixtos**.
 - **Varias instancias del mismo medio** (ej. 2 tarjetas distintas) - pagos **fraccionados**.
+
+Ambos se habilitan con códigos en `AdicionalesConfiguracion`.
+
+## Pagos mixtos (PSE + TC)
+
+Habilita pagos mixtos:
+
+```json
+{ "int_codigo": 109, "str_valor": "1" }
+
+y permite división en varios medios
+
+{ "int_codigo": 100, "str_valor": "1" }
