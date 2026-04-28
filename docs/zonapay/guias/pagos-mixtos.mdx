@@ -79,3 +79,20 @@ const todosAprobados = pagos.every(p => Number(p.int_estado_pago) === 1);
 <Warning>
 El pago se considera completamente aprobado **solo cuando todos los sub-pagos están aprobados**. Si uno falla, los demás pueden requerir reversa manual — coordina con soporte.
 </Warning>
+
+```javascript
+function estadoPagoMixto(pagos) {
+  const todosAprobados = pagos.every(p => Number(p.int_estado_pago) === 1);
+  const algunRechazado = pagos.some(p =>
+    [1000, 1001, 4000, 4003].includes(Number(p.int_estado_pago))
+  );
+  const algunPendiente = pagos.some(p =>
+    [888, 999, 4001].includes(Number(p.int_estado_pago))
+  );
+
+  if (todosAprobados) return "aprobado";
+  if (algunPendiente) return "pendiente";
+  if (algunRechazado) return "rechazado_parcial";
+  return "desconocido";
+}
+```
