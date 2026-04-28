@@ -66,3 +66,10 @@ Fraccionar en varias cuentas PSE:
 
 `int_cantidad_pagos` será mayor a 1. Cada elemento del array parseado es un **sub-pago** con su propio `int_n_pago`, `int_id_forma_pago` y `dbl_valor_pagado`.
 
+```javascript
+const pagos = parseStrResPago(data.str_res_pago);
+const totalPagado = pagos.reduce((sum, p) => sum + Number(p.dbl_valor_pagado), 0);
+// totalPagado debe igualar flt_total_con_iva del request original
+
+const todosAprobados = pagos.every(p => Number(p.int_estado_pago) === 1);
+```
