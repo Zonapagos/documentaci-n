@@ -1,6 +1,6 @@
 ---
 title: "Manejo de errores"
-description: "Cómo interpretar y reaccionar ante errores del API de ZonaPagos."
+description: "Cómo interpretar y reaccionar ante errores del API de Zonapagos."
 ---
 
 ## Taxonomía de errores
@@ -65,7 +65,7 @@ async function iniciarPagoConManejo(datos) {
   } catch (err) {
     // Timeout u otro error de red
     if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") {
-      throw new ErrorRed("Timeout al contactar ZonaPagos");
+      throw new ErrorRed("Timeout al contactar Zonapagos");
     }
     throw err;
   }
@@ -129,7 +129,7 @@ function mensajeUsuario(err) {
 
 Configura alertas para:
 
-- **Tasa de errores de red > 1%** en los últimos 10 min → problema del lado de ZonaPagos o de tu red.
+- **Tasa de errores de red > 1%** en los últimos 10 min → problema del lado de Zonapagos o de tu red.
 - **Tasa de `int_codigo: 2` > 5%** → probablemente bug en tu código (credenciales mal, campo mal construido).
 - **Sonda no ejecutada en > 30 min** → tu cron murió. Los pagos pendientes se acumulan.
 - **Pagos en estado `999` > 24h** → requieren intervención manual.
