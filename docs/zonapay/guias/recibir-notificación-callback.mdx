@@ -1,11 +1,11 @@
 ---
-title: "Recibir notificación"
-description: "Qué hacer cuando ZonaPagos redirige al usuario a tu URL de retorno."
+title: "Recibir notificación/Callback"
+description: "Qué hacer cuando Zonapagos redirige al usuario a tu URL de retorno."
 ---
 
 ## El callback
 
-Al terminar el ciclo de pago (exitoso, fallido, o abandonado), ZonaPagos redirige al usuario mediante HTTP `GET` a la URL de retorno del comercio. La request incluye dos parámetros en query string:
+Al terminar el ciclo de pago (exitoso, fallido, o abandonado), Zonapagos redirige al usuario mediante HTTP `GET` a la URL de retorno del comercio. La request incluye dos parámetros en query string:
 
 ```
 GET https://micomercio.com/pago/retorno?id_comercio=31416&id_pago=ORDEN-001
@@ -55,7 +55,7 @@ async function procesarCallback(idComercio, idPago, res) {
     return res.status(404).send("Pago no encontrado");
   }
 
-  // 3. Verificar estado con ZonaPagos
+  // 3. Verificar estado con Zonapagos
   const estado = await verificarEstado(idPago);
 
   // 4. Actuar según el estado
@@ -107,7 +107,7 @@ async function redirigirPorEstado(res, pago, estado) {
       return res.redirect(`/gracias/${pago.id}`);
     
     case "pendiente":
-      // ZonaPagos requiere mostrar mensaje específico (ver certificación PSE)
+      // Zonapagos requiere mostrar mensaje específico (ver certificación PSE)
       return res.redirect(`/pago-pendiente/${pago.id}`);
     
     case "rechazado":
@@ -124,7 +124,7 @@ async function redirigirPorEstado(res, pago, estado) {
 
 ## Idempotencia
 
-El usuario puede recargar la página del callback, o ZonaPagos puede enviar el callback dos veces (raro pero posible).
+El usuario puede recargar la página del callback, o Zonapagos puede enviar el callback dos veces (raro pero posible).
 
 <Check>
 **Al marcar como aprobado**: usa una operación idempotente.
@@ -157,7 +157,7 @@ A veces el usuario cierra la pestaña antes del redirect final. Tu backend **no*
 ## Consideraciones de seguridad
 
 <Warning>
-El callback **no está firmado**. Un atacante que conozca tu URL y un `id_pago` válido podría disparar un GET falso pretendiendo ser ZonaPagos.
+El callback **no está firmado**. Un atacante que conozca tu URL y un `id_pago` válido podría disparar un GET falso pretendiendo ser Zonapagos.
 
 **Mitigación obligatoria:**
 - Siempre verifica el estado con `/VerificacionPago` (como muestra este flujo).
