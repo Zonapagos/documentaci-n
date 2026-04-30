@@ -37,7 +37,7 @@
         "pages": [
           "docs/zonapay/guias/iniciar-pago",
           "docs/zonapay/guias/redirigir-usuario",
-          "docs/zonapay/guias/recibir-notificación",
+          "docs/zonapay/guias/recibir-notificación-callback",
           "docs/zonapay/guias/verificar-estado",
           "docs/zonapay/guias/implementar-sonda",
           "docs/zonapay/guias/manejo-errores",
