@@ -1,11 +1,11 @@
 ---
-title: "Seguridad de la notificación"
-description: "Cómo asegurar el endpoint que recibe al usuario de vuelta de ZonaPagos."
+title: "Seguridad de la notificación/Callback"
+description: "Cómo asegurar el endpoint que recibe al usuario de vuelta de Zonapagos."
 ---
 
 ## El riesgo
 
-El callback GET que ZonaPagos dispara hacia tu URL de retorno **no está firmado**. Un atacante que conozca tu URL y un `str_id_pago` válido podría hacer un GET falso pretendiendo ser ZonaPagos:
+El callback GET que Zonapagos dispara hacia tu URL de retorno **no está firmado**. Un atacante que conozca tu URL y un `str_id_pago` válido podría hacer un GET falso pretendiendo ser Zonapagos:
 
 ```
 GET https://micomercio.com/retorno?id_comercio=31416&id_pago=ORDEN-001
@@ -28,10 +28,10 @@ app.get("/pago/retorno", async (req, res) => {
     return res.status(403).send("Forbidden");
   }
   
-  // 2. SIEMPRE verificar contra ZonaPagos (no confiar en el callback)
-  const estado = await verificarConZonaPagos(id_pago);
+  // 2. SIEMPRE verificar contra Zonapagos (no confiar en el callback)
+  const estado = await verificarConZonapagos(id_pago);
   
-  // 3. Decidir según lo que dice ZonaPagos, NO lo que dice el callback
+  // 3. Decidir según lo que dice Zonapagos, NO lo que dice el callback
   return responderSegunEstado(res, estado);
 });
 ```
@@ -51,10 +51,10 @@ app.use("/pago/retorno", rateLimit({
 }));
 ```
 
-### IP allowlist (opcional, requiere coordinación con ZonaPagos)
+### IP allowlist (opcional, requiere coordinación con Zonapagos)
 
 <Warning>
-_[Pendiente con TI: ZonaPagos debería publicar el rango de IPs desde donde origina los callbacks, para que los comercios puedan restringir por IP. Actualmente no hay documentación pública de esos rangos.]_
+_[Pendiente con TI: Zonapagos debería publicar el rango de IPs desde donde origina los callbacks, para que los comercios puedan restringir por IP. Actualmente no hay documentación pública de esos rangos.]_
 </Warning>
 
 ### Validar que `id_pago` existe en tu BD
@@ -99,7 +99,7 @@ app.get("/retorno", async (req, res) => {
 ```javascript
 // MAL
 const pago = await db.pagos.findOne({ str_id_pago: req.query.id_pago });
-await entregar(pago);  // ← Sin verificar estado con ZonaPagos
+await entregar(pago);  // ← Sin verificar estado con Zonapagos
 ```
 </Warning>
 
@@ -109,7 +109,7 @@ await entregar(pago);  // ← Sin verificar estado con ZonaPagos
 
 ## HTTPS obligatorio
 
-Tu URL de retorno **debe** ser HTTPS. ZonaPagos no redirige a HTTP plano en producción.
+Tu URL de retorno **debe** ser HTTPS. Zonapagos no redirige a HTTP plano en producción.
 
 ## Ver también
 
