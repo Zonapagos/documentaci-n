@@ -42,7 +42,7 @@
           "docs/zonapay/guias/implementar-sonda",
           "docs/zonapay/guias/manejo-errores",
           "docs/zonapay/guias/idempotencia",
-          "docs/zonapay/guias/seguridad-de-notificación",
+          "docs/zonapay/guias/seguridad-de-notificación-callback",
           "docs/zonapay/guias/logging",
           "docs/zonapay/guias/checklist-produccion",
           "docs/zonapay/guias/certificacion-pse"
